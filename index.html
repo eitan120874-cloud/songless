@@ -153,8 +153,8 @@ async function restore(){
 async function saveUser(){U.updated=Date.now();try{await DB.put(mkKey(U.name),U)}catch(e){$("warn").textContent="הניקוד לא נשמר בשרת. בדוק חיבור."}}
 
 // ===== שירים =====
-let cache=jget("sl_c3",{}),pool=[];
-function rebuildPool(){pool=[];for(const k in cache)for(const s of cache[k].s)pool.push(s.n+" - "+s.a);$("pool").textContent=pool.length?`מאגר: ${pool.length} שירים מ-${Object.keys(cache).length} אמנים`:""}
+let cache=jget("sl_c4",{}),pool=[];
+  function rebuildPool(){pool=[];for(const k in cache)for(const s of cache[k].s)pool.push(s.n+" - "+s.a);$("pool").textContent=pool.length?`מאגר: ${pool.length} שירים מ-${Object.keys(cache).length} אמנים`:""}
 async function songsOf(a){
   const c=cache[a[1]];if(c&&Date.now()-c.t<864e5)return c.s;
   let out=[];
@@ -162,10 +162,10 @@ async function songsOf(a){
     const r=await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&country=IL&media=music&entity=song&attribute=artistTerm&limit=50`);
     if(!r.ok)throw 0;
     const j=await r.json(),seen=new Set();
-    out=j.results.filter(x=>x.previewUrl&&x.artistName&&(norm(x.artistName).includes(norm(a[0]))||norm(x.artistName).includes(a[1]))&&!BADW.test(x.trackName)).map(x=>({id:x.trackId,n:clean(x.trackName),f:x.trackName,a:x.artistName,u:x.previewUrl})).filter(x=>{const k=norm(x.n);if(!k||seen.has(k))return false;seen.add(k);return true}).slice(0,25);
+    out=j.results.filter(x=>x.previewUrl&&x.artistName&/[\u0590-\u05FF]/.test(x.trackName)&&&(norm(x.artistName).includes(norm(a[0]))||norm(x.artistName).includes(a[1]))&&!BADW.test(x.trackName)).map(x=>({id:x.trackId,n:clean(x.trackName),f:x.trackName,a:a[0],u:x.previewUrl})).filter(x=>{const k=norm(x.n);if(!k||seen.has(k))return false;seen.add(k);return true}).slice(0,25);
     if(out.length)break;
   }
-  cache[a[1]]={t:Date.now(),s:out};jset("sl_c3",cache);rebuildPool();return out;
+    cache[a[1]]={t:Date.now(),s:out};jset("sl_c4",cache);rebuildPool();return out;
 }
 let pf=false;
 async function prefetch(){
