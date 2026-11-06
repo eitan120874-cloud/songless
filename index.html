@@ -49,6 +49,9 @@ table{width:100%;border-collapse:collapse;font-size:15px}
 td,th{padding:8px 6px;text-align:start;border-bottom:1px solid var(--bd)}
 th{color:var(--mu);font-weight:500;font-size:13px}
 tr.me2{background:color-mix(in srgb,var(--ac) 18%,transparent);font-weight:600}
+.gen{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.gen button{padding:8px 12px;border:1px solid var(--bd);border-radius:20px;background:var(--cd);color:var(--tx);font-size:14px;cursor:pointer}
+.gen button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -70,6 +73,8 @@ tr.me2{background:color-mix(in srgb,var(--ac) 18%,transparent);font-weight:600}
   <div class="nav"><button id="tG" class="on">משחק</button><button id="tB">🏆 טבלה</button><button id="tX">יציאה</button></div>
 
   <section id="vGame">
+    <div class="gen" id="gen"></div>
+    <p class="sm" style="margin:0 0 10px">בחירת הסגנון תחול מהשיר הבא</p>
     <div class="card">
       <div class="me"><span>שחקן: <b id="mN"></b></span><span>ניקוד: <b id="mP">0</b></span></div>
       <div class="bars" id="bars"></div>
@@ -104,9 +109,13 @@ tr.me2{background:color-mix(in srgb,var(--ac) 18%,transparent);font-weight:600}
 // כתובת Firebase Realtime Database לטבלה משותפת. לדוגמה: "https://my-game-default-rtdb.europe-west1.firebasedatabase.app"
 const FB="https://songless-29664-default-rtdb.firebaseio.com";
 const ST=[0.5,1.5,3,8,15], PT=[100,75,50,30,15];
-// [עברית, אנגלית, משקל]
-const AR=[["אייל גולן","eyal golan",4],["פאר טסי","peer tasi",4],["שרית חדד","sarit hadad",4],["משה פרץ","moshe peretz",4],["עדן בן זקן","eden ben zaken",4],["נדב חנציס","nadav hanatsis",3],["עומר אדם","omer adam",3],["חיים משה","haim moshe",3],["זוהר ארגוב","zohar argov",3],["ישי ריבו","ishay ribo",2],["אושר כהן","osher cohen",2],["שלומי שבת","shlomi shabat",2],["אמיר דדון","amir dadon",2],["עדן חסון","eden hasson",2],["ליאור נרקיס","lior narkis",2],["דודו אהרון","dudu aharon",2],["אליעד","eliad",2],["שימי תבורי","shimi tavori",2],["עפרה חזה","ofra haza",2],["זהבה בן","zehava ben",2],["נועה קירל","noa kirel",2],["ריטה","rita",2],["מאור כהן","maor cohen",1],["אבנר גדסי","avner gadassi",1],["ששון שאולוב","sasson shaulov",1],["בניה ברבי","benaia barabi",1],["סטטיק ובן אל","static and ben el",2],["חנן בן ארי","hanan ben ari",1],["יובל דיין","yuval dayan",1],["אלה לי","ella lee",1],["איתי לוי","itay levi",1],["ירדנה ארזי","yardena arazi",1],["עמיר בניון","amir benayoun",1],["בועז שרעבי","boaz sharabi",1],["נסרין קדרי","nasrin kadri",1]];
-const BADW=/remix|live|karaoke|instrumental|acoustic|version|medley|mashup|רמיקס|מחרוזת|הופעה|קריוקי|גרסת|לייב/i;
+// [שם להצגה, שם לחיפוש, משקל, ז'אנרים]  ז'אנרים: miz מזרחית, med ים תיכוני, eng אנגלית, heb ישראלי כללי
+const AR=[["אייל גולן","eyal golan",4,["miz","med"]],["פאר טסי","peer tasi",4,["miz","med"]],["שרית חדד","sarit hadad",4,["miz"]],["משה פרץ","moshe peretz",4,["miz"]],["עדן בן זקן","eden ben zaken",4,["miz"]],["נדב חנציס","nadav hanatsis",3,["miz"]],["עומר אדם","omer adam",3,["miz","heb"]],["חיים משה","haim moshe",3,["miz","med"]],["זוהר ארגוב","zohar argov",3,["miz","med"]],["ישי ריבו","ishay ribo",2,["miz"]],["אושר כהן","osher cohen",2,["miz"]],["שלומי שבת","shlomi shabat",2,["miz","med"]],["אמיר דדון","amir dadon",2,["miz"]],["עדן חסון","eden hasson",2,["miz"]],["ליאור נרקיס","lior narkis",2,["miz","med"]],["דודו אהרון","dudu aharon",2,["miz","med"]],["אליעד","eliad",2,["miz"]],["שימי תבורי","shimi tavori",2,["miz","med"]],["עפרה חזה","ofra haza",2,["miz","med"]],["זהבה בן","zehava ben",2,["miz","med"]],["נועה קירל","noa kirel",2,["miz","heb"]],["מאור כהן","maor cohen",1,["miz"]],["בניה ברבי","benaia barabi",1,["miz"]],["סטטיק ובן אל","static and ben el",2,["miz"]],["יובל דיין","yuval dayan",1,["miz"]],["אלה לי","ella lee",1,["miz"]],["איתי לוי","itay levi",1,["miz"]],["נסרין קדרי","nasrin kadri",1,["miz"]],
+["אבנר גדסי","avner gadassi",2,["med"]],["ששון שאולוב","sasson shaulov",2,["med"]],["יגאל בשן","yigal bashan",1,["med"]],["מרגלית צנעני","margalit tsanani",1,["med"]],["אילנית","ilanit",1,["med","heb"]],["בועז שרעבי","boaz sharabi",2,["med","heb"]],
+["שלמה ארצי","shlomo artzi",3,["heb"]],["אריק איינשטיין","arik einstein",3,["heb"]],["אביב גפן","aviv geffen",3,["heb"]],["ברי סחרוף","berry sakharof",2,["heb"]],["עידן רייכל","idan raichel",2,["heb"]],["נינט טייב","ninet tayeb",2,["heb"]],["הדג נחש","hadag nahash",2,["heb"]],["אתניקס","ethnix",2,["heb"]],["רמי קליינשטיין","rami kleinstein",2,["heb"]],["שלמה גרוניך","shlomo gronich",1,["heb"]],["שלום חנוך","shalom hanoch",1,["heb"]],["מתי כספי","matti caspi",1,["heb"]],["דני סנדרסון","danny sanderson",1,["heb"]],["יהורם גאון","yehoram gaon",1,["heb"]],["מירי מסיקה","miri mesika",1,["heb"]],["ריטה","rita",2,["heb"]],["ירדנה ארזי","yardena arazi",1,["heb"]],["עמיר בניון","amir benayoun",1,["heb"]],["חנן בן ארי","hanan ben ari",1,["heb"]],
+["Ed Sheeran","ed sheeran",3,["eng"]],["Taylor Swift","taylor swift",3,["eng"]],["Dua Lipa","dua lipa",3,["eng"]],["The Weeknd","the weeknd",3,["eng"]],["Coldplay","coldplay",3,["eng"]],["Queen","queen",3,["eng"]],["Michael Jackson","michael jackson",3,["eng"]],["Beyoncé","beyoncé",2,["eng"]],["Rihanna","rihanna",3,["eng"]],["Adele","adele",3,["eng"]],["Bruno Mars","bruno mars",3,["eng"]],["Maroon 5","maroon 5",2,["eng"]],["Imagine Dragons","imagine dragons",2,["eng"]],["Billie Eilish","billie eilish",2,["eng"]],["Eminem","eminem",2,["eng"]],["Drake","drake",2,["eng"]],["Katy Perry","katy perry",2,["eng"]],["Justin Bieber","justin bieber",2,["eng"]],["Ariana Grande","ariana grande",2,["eng"]],["Harry Styles","harry styles",2,["eng"]],["Lady Gaga","lady gaga",2,["eng"]],["ABBA","abba",2,["eng"]],["The Beatles","the beatles",2,["eng"]],["Madonna","madonna",2,["eng"]],["Elton John","elton john",2,["eng"]],["Whitney Houston","whitney houston",2,["eng"]],["Post Malone","post malone",1,["eng"]],["Olivia Rodrigo","olivia rodrigo",1,["eng"]],["Linkin Park","linkin park",1,["eng"]],["Nirvana","nirvana",1,["eng"]]];
+const GEN=[["miz","מזרחית"],["med","ים תיכוני"],["eng","אנגלית"],["heb","ישראלי כללי"]];
+const BADE=/\b(remix|live|karaoke|instrumental|acoustic|version|medley|mashup)\b/i, BADH=/רמיקס|מחרוזת|הופעה|קריוקי|גרסת|לייב/;
 const $=id=>document.getElementById(id);
 const norm=s=>s.replace(/[\u0591-\u05C7]/g,"").replace(/[-–_.,!?'"()׳״`’]/g," ").replace(/\s+/g," ").trim().toLowerCase();
 const clean=s=>s.replace(/\s*[\(\[].*?[\)\]]/g,"").trim();
@@ -153,28 +162,39 @@ async function restore(){
 async function saveUser(){U.updated=Date.now();try{await DB.put(mkKey(U.name),U)}catch(e){$("warn").textContent="הניקוד לא נשמר בשרת. בדוק חיבור."}}
 
 // ===== שירים =====
-let cache=jget("sl_c4",{}),pool=[];
-function rebuildPool(){pool=[];for(const k in cache)for(const s of cache[k].s)pool.push(s.n+" - "+s.a);$("pool").textContent=pool.length?`מאגר: ${pool.length} שירים מ-${Object.keys(cache).length} אמנים`:""}
+let cache=jget("sl_c5",{}),pool=[];
+let SEL=new Set(jget("sl_gen",["miz"]));
+const inSel=a=>a[3].some(g=>SEL.has(g));
+const isEng=a=>a[3].includes("eng");
+function rebuildPool(){pool=[];for(const a of AR){if(!inSel(a)||!cache[a[1]])continue;for(const s of cache[a[1]].s)pool.push(s.n+" - "+s.a)}$("pool").textContent=pool.length?`מאגר: ${pool.length} שירים`:""}
 async function songsOf(a){
   const c=cache[a[1]];if(c&&Date.now()-c.t<864e5)return c.s;
   let out=[];
-  for(const term of[a[0],a[1]]){
-    const r=await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&country=IL&media=music&entity=song&attribute=artistTerm&limit=50`);
+  for(const term of isEng(a)?[a[0]]:[a[0],a[1]]){
+    const r=await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&country=${isEng(a)?"US":"IL"}&media=music&entity=song&attribute=artistTerm&limit=50`);
     if(!r.ok)throw 0;
     const j=await r.json(),seen=new Set();
-    out=j.results.filter(x=>x.previewUrl&&x.artistName&&/[\u0590-\u05FF]/.test(x.trackName)&&(norm(x.artistName).includes(norm(a[0]))||norm(x.artistName).includes(a[1]))&&!BADW.test(x.trackName)).map(x=>({id:x.trackId,n:clean(x.trackName),f:x.trackName,a:a[0],u:x.previewUrl})).filter(x=>{const k=norm(x.n);if(!k||seen.has(k))return false;seen.add(k);return true}).slice(0,25);
+    out=j.results.filter(x=>x.previewUrl&&x.artistName&&(isEng(a)||/[\u0590-\u05FF]/.test(x.trackName))&&(norm(x.artistName).includes(norm(a[0]))||norm(x.artistName).includes(a[1]))&&!BADE.test(x.trackName)&&!BADH.test(x.trackName)).map(x=>({id:x.trackId,n:clean(x.trackName),f:x.trackName,a:a[0],u:x.previewUrl})).filter(x=>{const k=norm(x.n);if(!k||seen.has(k))return false;seen.add(k);return true}).slice(0,25);
     if(out.length)break;
   }
-  cache[a[1]]={t:Date.now(),s:out};jset("sl_c4",cache);rebuildPool();return out;
+  cache[a[1]]={t:Date.now(),s:out};jset("sl_c5",cache);rebuildPool();return out;
 }
 let pf=false;
 async function prefetch(){
-  if(pf)return;pf=true;
-  for(const a of AR){const c=cache[a[1]];if(c&&Date.now()-c.t<864e5)continue;
-    try{await songsOf(a)}catch(e){await new Promise(r=>setTimeout(r,15000))}
-    await new Promise(r=>setTimeout(r,3200));}
+  if(pf)return;pf=true;let fails=0;
+  while(fails<5){
+    const a=AR.find(x=>inSel(x)&&!(cache[x[1]]&&Date.now()-cache[x[1]].t<864e5));
+    if(!a)break;
+    try{await songsOf(a);fails=0}catch(e){fails++;await new Promise(r=>setTimeout(r,15000))}
+    await new Promise(r=>setTimeout(r,3200));
+  }
+  pf=false;
 }
-function pick(){let t=AR.reduce((s,a)=>s+a[2],0),r=Math.random()*t;for(const a of AR){r-=a[2];if(r<=0)return a}return AR[0]}
+function pick(){const L=AR.filter(inSel);let t=L.reduce((s,a)=>s+a[2],0),r=Math.random()*t;for(const a of L){r-=a[2];if(r<=0)return a}return L[0]}
+function renderGen(){
+  $("gen").innerHTML=GEN.map(g=>`<button class="${SEL.has(g[0])?"on":""}" data-g="${g[0]}">${g[1]}</button>`).join("");
+  [...$("gen").children].forEach(b=>b.onclick=()=>{const g=b.dataset.g;if(SEL.has(g)){if(SEL.size>1)SEL.delete(g)}else SEL.add(g);jset("sl_gen",[...SEL]);renderGen();rebuildPool();prefetch()});
+}
 
 // ===== משחק =====
 const A=$("aud");
@@ -252,7 +272,7 @@ $("tX").onclick=()=>{stop();localStorage.removeItem("sl_user");location.reload()
 $("go").onclick=login;$("pin").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
 
 if(!FB)$("warn").textContent="מצב מקומי: הטבלה לא משותפת בין משתמשים עד שמחברים Firebase.";
-rebuildPool();restore();
+renderGen();rebuildPool();restore();
 if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
