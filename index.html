@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2a6fdb">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="נחש את השיר">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>נחש את השיר – מזרחית</title>
+<style>
+:root{--bg:#f6f4ef;--cd:#fff;--tx:#1d1b18;--mu:#7a746b;--ac:#2a6fdb;--ok:#2e9e5b;--bad:#d64545;--bd:#ddd7cc}
+@media (prefers-color-scheme:dark){:root{--bg:#17161a;--cd:#222126;--tx:#f1eee8;--mu:#9a948a;--ac:#5b9bff;--ok:#4cc27f;--bad:#f06a6a;--bd:#38363d;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,"Segoe UI",Arial,sans-serif;display:flex;justify-content:center}
+main{width:100%;max-width:540px;padding:18px 14px 40px}
+h1{font-size:26px;margin:0 0 12px;text-align:center}
+.card{background:var(--cd);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:14px}
+.nav{display:flex;gap:6px;margin-bottom:12px}
+.nav button{flex:1;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--cd);color:var(--tx);font-size:15px;cursor:pointer}
+.nav button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.me{display:flex;justify-content:space-between;font-size:14px;color:var(--mu);margin-bottom:10px}
+.me b{color:var(--tx)}
+.bars{display:flex;gap:6px;margin-bottom:6px}
+.bars div{flex:1;height:10px;border-radius:5px;background:var(--bd)}
+.bars .used{background:var(--bad)}.bars .cur{background:var(--ac)}.bars .win{background:var(--ok)}
+.lbl{display:flex;gap:6px;margin-bottom:12px;font-size:11px;color:var(--mu);text-align:center}
+.lbl span{flex:1}
+.play{display:block;margin:6px auto 4px;width:84px;height:84px;border-radius:50%;border:0;background:var(--ac);color:#fff;font-size:34px;cursor:pointer}
+.play:disabled{opacity:.4}
+.len{text-align:center;color:var(--mu);font-size:14px;margin-bottom:8px;min-height:20px}
+ul{list-style:none;padding:0;margin:0 0 12px}
+.g li{padding:9px 12px;border:1px solid var(--bd);border-radius:10px;margin-bottom:6px;font-size:15px}
+.g .skip{color:var(--mu)}.g .wrong{color:var(--bad)}
+.iw{position:relative}
+input{width:100%;padding:12px;font-size:16px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);margin-bottom:8px}
+.sug{position:absolute;inset-inline:0;top:100%;margin-top:-8px;background:var(--cd);border:1px solid var(--bd);border-radius:10px;max-height:220px;overflow:auto;z-index:5;display:none}
+.sug div{padding:10px 12px;cursor:pointer;font-size:15px}.sug div:hover{background:var(--bg)}
+.row{display:flex;gap:8px}
+.b{flex:1;padding:12px;border-radius:10px;border:1px solid var(--bd);background:var(--cd);color:var(--tx);font-size:15px;cursor:pointer}
+.p{background:var(--ac);border-color:var(--ac);color:#fff}
+.res{text-align:center;font-size:18px;margin:6px 0 10px;font-weight:600}
+.sm{font-size:12px;color:var(--mu);text-align:center;line-height:1.6}
+.err{color:var(--bad);font-size:14px;text-align:center;min-height:20px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+td,th{padding:8px 6px;text-align:start;border-bottom:1px solid var(--bd)}
+th{color:var(--mu);font-weight:500;font-size:13px}
+tr.me2{background:color-mix(in srgb,var(--ac) 18%,transparent);font-weight:600}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+<h1>🎵 נחש את השיר</h1>
+<div class="sm" id="warn"></div>
+
+<section class="card" id="vLogin" hidden>
+  <p style="margin:0 0 10px;text-align:center">התחבר עם שם משתמש כדי להופיע בטבלה</p>
+  <input id="un" placeholder="שם משתמש (2-16 תווים)" maxlength="16" autocomplete="off">
+  <input id="pin" placeholder="קוד סודי (4 ספרות)" inputmode="numeric" maxlength="4" type="password">
+  <div class="err" id="lerr"></div>
+  <button class="b p" id="go" style="width:100%">כניסה / הרשמה</button>
+  <p class="sm">שם חדש נרשם אוטומטית. כדי להיכנס שוב מאותו שם צריך את אותו קוד.</p>
+</section>
+
+<div id="vApp" hidden>
+  <div class="nav"><button id="tG" class="on">משחק</button><button id="tB">🏆 טבלה</button><button id="tX">יציאה</button></div>
+
+  <section id="vGame">
+    <div class="card">
+      <div class="me"><span>שחקן: <b id="mN"></b></span><span>ניקוד: <b id="mP">0</b></span></div>
+      <div class="bars" id="bars"></div>
+      <div class="lbl" id="lbl"></div>
+      <button class="play" id="play" disabled>▶</button>
+      <div class="len" id="len"></div>
+      <ul class="g" id="gs"></ul>
+      <div id="result"></div>
+      <div id="inp">
+        <div class="iw"><input type="text" id="q" placeholder="הקלד שם שיר או אמן..." autocomplete="off"><div class="sug" id="sug"></div></div>
+        <div class="row"><button class="b" id="skip">דלג</button><button class="b p" id="send">נחש</button></div>
+        <div class="row" style="margin-top:8px"><button class="b" id="bad" style="font-size:13px">השיר לא נטען? טען אחר</button></div>
+      </div>
+      <div class="row" id="again" hidden><button class="b p" id="next">שיר הבא ▶</button></div>
+    </div>
+    <p class="sm" id="pool"></p>
+  </section>
+
+  <section id="vBoard" hidden>
+    <div class="card">
+      <table><thead><tr><th>#</th><th>שחקן</th><th>נקודות</th><th>שירים</th><th>פגיעות</th></tr></thead><tbody id="tb"></tbody></table>
+      <div class="row" style="margin-top:12px"><button class="b" id="rf">רענן</button></div>
+    </div>
+  </section>
+</div>
+
+<p class="sm">קטעי האודיו הם תצוגות מקדימות רשמיות מ-Apple Music (iTunes).</p>
+</main>
+<audio id="aud" preload="auto"></audio>
+<script>
+// ===== הגדרות =====
+// כתובת Firebase Realtime Database לטבלה משותפת. לדוגמה: "https://my-game-default-rtdb.europe-west1.firebasedatabase.app"
+const FB="";
+const ST=[0.5,1.5,3,8,15], PT=[100,75,50,30,15];
+// [עברית, אנגלית, משקל]
+const AR=[["אייל גולן","eyal golan",4],["פאר טסי","peer tasi",4],["שרית חדד","sarit hadad",4],["משה פרץ","moshe peretz",4],["עדן בן זקן","eden ben zaken",4],["נדב חנציס","nadav hanatsis",3],["עומר אדם","omer adam",3],["חיים משה","haim moshe",3],["זוהר ארגוב","zohar argov",3],["ישי ריבו","ishay ribo",2],["אושר כהן","osher cohen",2],["שלומי שבת","shlomi shabat",2],["אמיר דדון","amir dadon",2],["עדן חסון","eden hasson",2],["ליאור נרקיס","lior narkis",2],["דודו אהרון","dudu aharon",2],["אליעד","eliad",2],["שימי תבורי","shimi tavori",2],["עפרה חזה","ofra haza",2],["זהבה בן","zehava ben",2],["נועה קירל","noa kirel",2],["ריטה","rita",2],["מאור כהן","maor cohen",1],["אבנר גדסי","avner gadassi",1],["ששון שאולוב","sasson shaulov",1],["בניה ברבי","benaia barabi",1],["סטטיק ובן אל","static and ben el",2],["חנן בן ארי","hanan ben ari",1],["יובל דיין","yuval dayan",1],["אלה לי","ella lee",1],["איתי לוי","itay levi",1],["ירדנה ארזי","yardena arazi",1],["עמיר בניון","amir benayoun",1],["בועז שרעבי","boaz sharabi",1],["נסרין קדרי","nasrin kadri",1]];
+const BADW=/remix|live|karaoke|instrumental|acoustic|version|medley|mashup|רמיקס|מחרוזת|הופעה|קריוקי|גרסת|לייב/i;
+const $=id=>document.getElementById(id);
+const norm=s=>s.replace(/[\u0591-\u05C7]/g,"").replace(/[-–_.,!?'"()׳״`’]/g," ").replace(/\s+/g," ").trim().toLowerCase();
+const clean=s=>s.replace(/\s*[\(\[].*?[\)\]]/g,"").trim();
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const jget=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
+const jset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+
+// ===== מסד נתונים (Firebase REST או מקומי) =====
+const DB={
+  async get(k){if(!FB){return jget("sl_lp",{})[k]||null}const r=await fetch(`${FB}/players/${encodeURIComponent(k)}.json`);if(!r.ok)throw 0;return r.json()},
+  async put(k,v){if(!FB){const o=jget("sl_lp",{});o[k]=v;jset("sl_lp",o);return}const r=await fetch(`${FB}/players/${encodeURIComponent(k)}.json`,{method:"PUT",body:JSON.stringify(v)});if(!r.ok)throw 0},
+  async top(){
+    if(!FB)return Object.values(jget("sl_lp",{}));
+    let r=await fetch(`${FB}/players.json?orderBy=${encodeURIComponent('"points"')}&limitToLast=50`);
+    if(!r.ok)r=await fetch(`${FB}/players.json`);
+    if(!r.ok)throw 0;
+    return Object.values(await r.json()||{});
+  }
+};
+async function hsh(s){try{const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}catch(e){let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))|0;return"x"+h}}
+const mkKey=n=>norm(n).replace(/[.$#\[\]\/\s]/g,"_");
+
+// ===== משתמש =====
+let U=null;
+function showApp(){$("vLogin").hidden=true;$("vApp").hidden=false;$("mN").textContent=U.name;$("mP").textContent=U.points;newRound();prefetch()}
+async function login(){
+  const name=$("un").value.trim(),pin=$("pin").value.trim();
+  $("lerr").textContent="";
+  if(name.length<2){$("lerr").textContent="שם קצר מדי";return}
+  if(!/^\d{4}$/.test(pin)){$("lerr").textContent="הקוד חייב להיות 4 ספרות";return}
+  const k=mkKey(name),ph=await hsh(k+":"+pin+":sl");
+  try{
+    let rec=await DB.get(k);
+    if(rec){if(rec.ph!==ph){$("lerr").textContent="השם תפוס או שהקוד שגוי";return}}
+    else{rec={name,ph,points:0,songs:0,correct:0,updated:Date.now()};await DB.put(k,rec)}
+    U=rec;jset("sl_user",{k,ph});showApp();
+  }catch(e){$("lerr").textContent="בעיית חיבור לשרת. נסה שוב."}
+}
+async function restore(){
+  const s=jget("sl_user",null);
+  if(s){try{const rec=await DB.get(s.k);if(rec&&rec.ph===s.ph){U=rec;showApp();return}}catch(e){}}
+  $("vLogin").hidden=false;
+}
+async function saveUser(){U.updated=Date.now();try{await DB.put(mkKey(U.name),U)}catch(e){$("warn").textContent="הניקוד לא נשמר בשרת. בדוק חיבור."}}
+
+// ===== שירים =====
+let cache=jget("sl_c3",{}),pool=[];
+function rebuildPool(){pool=[];for(const k in cache)for(const s of cache[k].s)pool.push(s.n+" - "+s.a);$("pool").textContent=pool.length?`מאגר: ${pool.length} שירים מ-${Object.keys(cache).length} אמנים`:""}
+async function songsOf(a){
+  const c=cache[a[1]];if(c&&Date.now()-c.t<864e5)return c.s;
+  let out=[];
+  for(const term of[a[0],a[1]]){
+    const r=await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&country=IL&media=music&entity=song&attribute=artistTerm&limit=50`);
+    if(!r.ok)throw 0;
+    const j=await r.json(),seen=new Set();
+    out=j.results.filter(x=>x.previewUrl&&x.artistName&&(norm(x.artistName).includes(norm(a[0]))||norm(x.artistName).includes(a[1]))&&!BADW.test(x.trackName)).map(x=>({id:x.trackId,n:clean(x.trackName),f:x.trackName,a:x.artistName,u:x.previewUrl})).filter(x=>{const k=norm(x.n);if(!k||seen.has(k))return false;seen.add(k);return true}).slice(0,25);
+    if(out.length)break;
+  }
+  cache[a[1]]={t:Date.now(),s:out};jset("sl_c3",cache);rebuildPool();return out;
+}
+let pf=false;
+async function prefetch(){
+  if(pf)return;pf=true;
+  for(const a of AR){const c=cache[a[1]];if(c&&Date.now()-c.t<864e5)continue;
+    try{await songsOf(a)}catch(e){await new Promise(r=>setTimeout(r,15000))}
+    await new Promise(r=>setTimeout(r,3200));}
+}
+function pick(){let t=AR.reduce((s,a)=>s+a[2],0),r=Math.random()*t;for(const a of AR){r-=a[2];if(r<=0)return a}return AR[0]}
+
+// ===== משחק =====
+const A=$("aud");
+let cur=null,stage=0,gu=[],over=false,raf=0,lid=0,seenT=new Set();
+function stop(){cancelAnimationFrame(raf);A.pause();$("play").textContent="▶"}
+function play(){
+  if($("play").textContent==="■"){stop();return}
+  const d=over?30:ST[stage];A.currentTime=0;A.play().catch(()=>{});$("play").textContent="■";
+  const t0=performance.now();
+  const tick=()=>{if(A.currentTime>=d||A.ended||performance.now()-t0>d*1000+2500){stop();return}raf=requestAnimationFrame(tick)};
+  raf=requestAnimationFrame(tick);
+}
+function bars(win){
+  $("bars").innerHTML=ST.map((_,i)=>`<div class="${win&&i===stage?"win":i<gu.length?"used":i===stage&&!over?"cur":""}"></div>`).join("");
+  $("lbl").innerHTML=ST.map((s,i)=>`<span>${s}ש׳<br>${PT[i]}</span>`).join("");
+  if(cur&&!over)$("len").textContent=`קטע של ${ST[stage]} שניות · שווה ${PT[stage]} נקודות`;
+}
+function render(){$("gs").innerHTML=gu.map(g=>`<li class="${g.s?"skip":"wrong"}">${g.s?"⏭ דילוג":"✗ "+esc(g.t)}</li>`).join("")}
+async function newRound(){
+  stop();over=false;stage=0;gu=[];cur=null;const id=++lid;
+  $("result").innerHTML="";$("inp").hidden=false;$("again").hidden=true;$("q").value="";$("play").disabled=true;
+  $("len").textContent="טוען שיר...";bars();render();
+  for(let t=0;t<8;t++){
+    try{
+      const l=(await songsOf(pick())).filter(x=>!seenT.has(x.id));
+      if(id!==lid)return;
+      if(!l.length)continue;
+      const x=l[Math.floor(Math.random()*l.length)];seenT.add(x.id);cur=x;
+      await new Promise((res,rej)=>{A.oncanplaythrough=res;A.onerror=rej;A.src=x.u;A.load();setTimeout(res,6000)});
+      if(id!==lid)return;
+      $("play").disabled=false;bars();return;
+    }catch(e){cur=null}
+  }
+  $("len").textContent="לא הצלחתי לטעון שיר. בדוק חיבור ונסה שוב.";
+}
+function ok(t){const a=norm(t);return[cur.n,cur.f,cur.n+" - "+cur.a].some(x=>norm(x)===a)}
+async function finish(win){
+  over=true;stop();const pts=win?PT[stage]:0;
+  U.songs++;if(win){U.points+=pts;U.correct++}
+  $("mP").textContent=U.points;bars(win);
+  $("result").innerHTML=`<div class="res" style="color:var(--${win?"ok":"bad"})">${win?"🎉 נכון! +"+pts+" נקודות":"😔 לא הפעם"}<br><span style="color:var(--tx)">${esc(cur.n)}</span><br><span style="color:var(--mu);font-size:15px">${esc(cur.a)}</span></div>`;
+  $("len").textContent="אפשר להאזין לקטע המלא (30 שניות)";
+  $("inp").hidden=true;$("again").hidden=false;
+  saveUser();
+}
+function miss(t,s){
+  gu.push({t,s});
+  if(gu.length>=ST.length){render();finish(false);return}
+  stage++;bars();render();$("q").value="";$("sug").style.display="none";play();
+}
+function submit(){if(over||!cur)return;const t=$("q").value.trim();if(!t)return;if(ok(t)){gu.push({t});render();finish(true)}else miss(t,false)}
+$("play").onclick=play;
+$("skip").onclick=()=>{if(!over&&cur)miss("",true)};
+$("send").onclick=submit;$("next").onclick=newRound;$("bad").onclick=newRound;
+$("q").addEventListener("keydown",e=>{if(e.key==="Enter")submit()});
+$("q").addEventListener("input",()=>{
+  const v=norm($("q").value),b=$("sug");
+  if(!v){b.style.display="none";return}
+  const m=pool.filter(s=>norm(s).includes(v)).slice(0,8);
+  b.innerHTML=m.map(s=>`<div>${esc(s)}</div>`).join("");b.style.display=m.length?"block":"none";
+  [...b.children].forEach(d=>d.onclick=()=>{$("q").value=d.textContent;b.style.display="none"});
+});
+
+// ===== טבלה וניווט =====
+async function board(){
+  $("tb").innerHTML='<tr><td colspan="5">טוען...</td></tr>';
+  try{
+    const l=(await DB.top()).sort((a,b)=>b.points-a.points).slice(0,50),me=mkKey(U.name);
+    $("tb").innerHTML=l.map((p,i)=>`<tr class="${mkKey(p.name)===me?"me2":""}"><td>${i+1}${i<3?["🥇","🥈","🥉"][i]:""}</td><td>${esc(p.name)}</td><td>${p.points}</td><td>${p.songs}</td><td>${p.songs?Math.round(100*p.correct/p.songs)+"%":"-"}</td></tr>`).join("")||'<tr><td colspan="5">אין עדיין שחקנים</td></tr>';
+  }catch(e){$("tb").innerHTML='<tr><td colspan="5">שגיאה בטעינת הטבלה</td></tr>'}
+}
+function tab(g){$("vGame").hidden=!g;$("vBoard").hidden=g;$("tG").classList.toggle("on",g);$("tB").classList.toggle("on",!g);if(!g){stop();board()}}
+$("tG").onclick=()=>tab(true);$("tB").onclick=()=>tab(false);$("rf").onclick=board;
+$("tX").onclick=()=>{stop();localStorage.removeItem("sl_user");location.reload()};
+$("go").onclick=login;$("pin").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
+
+if(!FB)$("warn").textContent="מצב מקומי: הטבלה לא משותפת בין משתמשים עד שמחברים Firebase.";
+rebuildPool();restore();
+if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
