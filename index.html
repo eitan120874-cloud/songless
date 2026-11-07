@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>נחש את השיר – מזרחית</title>
+<title>נחש את השיר</title>
 <style>
 :root{--bg:#f6f4ef;--cd:#fff;--tx:#1d1b18;--mu:#7a746b;--ac:#2a6fdb;--ok:#2e9e5b;--bad:#d64545;--bd:#ddd7cc}
 @media (prefers-color-scheme:dark){:root{--bg:#17161a;--cd:#222126;--tx:#f1eee8;--mu:#9a948a;--ac:#5b9bff;--ok:#4cc27f;--bad:#f06a6a;--bd:#38363d;color-scheme:dark}}
@@ -52,6 +52,9 @@ tr.me2{background:color-mix(in srgb,var(--ac) 18%,transparent);font-weight:600}
 .gen{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
 .gen button{padding:8px 12px;border:1px solid var(--bd);border-radius:20px;background:var(--cd);color:var(--tx);font-size:14px;cursor:pointer}
 .gen button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.big{display:block;width:100%;padding:16px;font-size:18px;margin-bottom:10px}
+.lv{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:14px;border:1px solid var(--bd);border-radius:12px;margin-bottom:8px;background:var(--cd);cursor:pointer}
+.lv.lock{opacity:.5;cursor:default}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -70,13 +73,32 @@ tr.me2{background:color-mix(in srgb,var(--ac) 18%,transparent);font-weight:600}
 </section>
 
 <div id="vApp" hidden>
-  <div class="nav"><button id="tG" class="on">משחק</button><button id="tB">🏆 טבלה</button><button id="tX">יציאה</button></div>
 
-  <section id="vGame">
-    <div class="gen" id="gen"></div>
-    <p class="sm" style="margin:0 0 10px">בחירת הסגנון תחול מהשיר הבא</p>
+  <section id="sHome" hidden>
+    <div class="card" style="text-align:center">
+      <div style="font-size:54px">🎧</div>
+      <div style="font-size:20px;font-weight:600" id="hi"></div>
+      <div class="sm" id="hs" style="font-size:14px"></div>
+    </div>
+    <button class="b p big" id="bLv">🎯 מסלול שלבים</button>
+    <button class="b big" id="bFree">🎲 משחק חופשי</button>
+    <button class="b big" id="bBoard">🏆 טבלת מובילים</button>
+    <button class="b big" id="bHow">❓ איך משחקים</button>
+    <button class="b big" id="bOut">יציאה</button>
+  </section>
+
+  <section id="sLevels" hidden>
+    <button class="b back" style="width:100%;margin-bottom:10px">↩ תפריט</button>
+    <p class="sm" style="margin:0 0 6px">סגנונות לשלבים:</p>
+    <div class="gen" id="genL"></div>
+    <p class="sm" style="margin:0 0 10px">כדי לעבור שלב צריך לנחש לפחות 3 מתוך 5 שירים. קושי השלבים מבוסס על פופולריות השירים והאמנים.</p>
+    <div id="lvs"></div>
+  </section>
+
+  <section id="sGame" hidden>
+    <div class="row" style="margin-bottom:10px;align-items:center"><button class="b back" style="flex:0 0 auto">↩ תפריט</button><div id="gh" style="flex:1;text-align:center;font-size:14px;color:var(--mu)"></div></div>
+    <div id="genFW"><div class="gen" id="genF"></div><p class="sm" style="margin:0 0 10px">בחירת הסגנון תחול מהשיר הבא</p></div>
     <div class="card">
-      <div class="me"><span>שחקן: <b id="mN"></b></span><span>ניקוד: <b id="mP">0</b></span></div>
       <div class="bars" id="bars"></div>
       <div class="lbl" id="lbl"></div>
       <button class="play" id="play" disabled>▶</button>
@@ -93,10 +115,30 @@ tr.me2{background:color-mix(in srgb,var(--ac) 18%,transparent);font-weight:600}
     <p class="sm" id="pool"></p>
   </section>
 
-  <section id="vBoard" hidden>
+  <section id="sSum" hidden>
+    <div class="card" id="sumBody"></div>
+    <div class="row"><button class="b p" id="sNext">שלב הבא ▶</button></div>
+    <div class="row" style="margin-top:8px"><button class="b" id="sRetry">שחק שוב</button><button class="b" id="sMenu">לשלבים</button></div>
+  </section>
+
+  <section id="sBoard" hidden>
+    <button class="b back" style="width:100%;margin-bottom:10px">↩ תפריט</button>
     <div class="card">
-      <table><thead><tr><th>#</th><th>שחקן</th><th>נקודות</th><th>שירים</th><th>פגיעות</th></tr></thead><tbody id="tb"></tbody></table>
+      <table><thead><tr><th>#</th><th>שחקן</th><th>נקודות</th><th>שלב</th><th>כוכבים</th></tr></thead><tbody id="tb"></tbody></table>
       <div class="row" style="margin-top:12px"><button class="b" id="rf">רענן</button></div>
+    </div>
+  </section>
+
+  <section id="sHow" hidden>
+    <button class="b back" style="width:100%;margin-bottom:10px">↩ תפריט</button>
+    <div class="card" style="line-height:1.8;font-size:15px">
+      <b>איך משחקים?</b><br>
+      שומעים קטע קצר מתחילת שיר ומנחשים את שמו. כל ניחוש שגוי או דילוג פותחים קטע ארוך יותר.<br><br>
+      <b>חמישה שלבי האזנה:</b> חצי שנייה, שנייה וחצי, 3 שניות, 8 שניות ו-15 שניות.<br>
+      <b>ניקוד לפי השלב שבו פגעת:</b> 100, 75, 50, 30 או 15 נקודות. אם לא פגעת, אין נקודות.<br><br>
+      <b>מסלול שלבים:</b> בכל שלב 5 שירים. שלב 1 הוא הלהיטים הגדולים, והשירים נעשים פחות מוכרים ככל שעולים. כדי לעבור צריך לנחש לפחות 3 שירים. 3 שירים נותנים כוכב, 4 שירים שני כוכבים ו-5 שירים שלושה כוכבים.<br>
+      הניקוד שלך בטבלה הוא סכום השיאים שלך בכל השלבים, כך שאפשר לשפר שלב ששיחקת.<br><br>
+      <b>משחק חופשי:</b> שירים אקראיים מהסגנונות שבחרת, בלי ניקוד בטבלה.
     </div>
   </section>
 </div>
@@ -109,6 +151,7 @@ tr.me2{background:color-mix(in srgb,var(--ac) 18%,transparent);font-weight:600}
 // כתובת Firebase Realtime Database לטבלה משותפת. לדוגמה: "https://my-game-default-rtdb.europe-west1.firebasedatabase.app"
 const FB="https://songless-29664-default-rtdb.firebaseio.com";
 const ST=[0.5,1.5,3,8,15], PT=[100,75,50,30,15];
+// [עברית, אנגלית, משקל]
 // [שם להצגה, שם לחיפוש, משקל, ז'אנרים]  ז'אנרים: miz מזרחית, med ים תיכוני, eng אנגלית, heb ישראלי כללי
 const AR=[["אייל גולן","eyal golan",4,["miz","med"]],["פאר טסי","peer tasi",4,["miz","med"]],["שרית חדד","sarit hadad",4,["miz"]],["משה פרץ","moshe peretz",4,["miz"]],["עדן בן זקן","eden ben zaken",4,["miz"]],["נדב חנציס","nadav hanatsis",3,["miz"]],["עומר אדם","omer adam",3,["miz","heb"]],["חיים משה","haim moshe",3,["miz","med"]],["זוהר ארגוב","zohar argov",3,["miz","med"]],["ישי ריבו","ishay ribo",2,["miz"]],["אושר כהן","osher cohen",2,["miz"]],["שלומי שבת","shlomi shabat",2,["miz","med"]],["אמיר דדון","amir dadon",2,["miz"]],["עדן חסון","eden hasson",2,["miz"]],["ליאור נרקיס","lior narkis",2,["miz","med"]],["דודו אהרון","dudu aharon",2,["miz","med"]],["אליעד","eliad",2,["miz"]],["שימי תבורי","shimi tavori",2,["miz","med"]],["עפרה חזה","ofra haza",2,["miz","med"]],["זהבה בן","zehava ben",2,["miz","med"]],["נועה קירל","noa kirel",2,["miz","heb"]],["מאור כהן","maor cohen",1,["miz"]],["בניה ברבי","benaia barabi",1,["miz"]],["סטטיק ובן אל","static and ben el",2,["miz"]],["יובל דיין","yuval dayan",1,["miz"]],["אלה לי","ella lee",1,["miz"]],["איתי לוי","itay levi",1,["miz"]],["נסרין קדרי","nasrin kadri",1,["miz"]],
 ["אבנר גדסי","avner gadassi",2,["med"]],["ששון שאולוב","sasson shaulov",2,["med"]],["יגאל בשן","yigal bashan",1,["med"]],["מרגלית צנעני","margalit tsanani",1,["med"]],["אילנית","ilanit",1,["med","heb"]],["בועז שרעבי","boaz sharabi",2,["med","heb"]],
@@ -140,7 +183,8 @@ const mkKey=n=>norm(n).replace(/[.$#\[\]\/\s]/g,"_");
 
 // ===== משתמש =====
 let U=null;
-function showApp(){$("vLogin").hidden=true;$("vApp").hidden=false;$("mN").textContent=U.name;$("mP").textContent=U.points;newRound();prefetch()}
+function fixU(r){if(r.unlocked===undefined){r.points=0;r.unlocked=1;r.lv={}}r.lv=r.lv||{};return r}
+function showApp(){$("vLogin").hidden=true;$("vApp").hidden=false;renderHome();show("sHome");prefetch()}
 async function login(){
   const name=$("un").value.trim(),pin=$("pin").value.trim();
   $("lerr").textContent="";
@@ -148,21 +192,21 @@ async function login(){
   if(!/^\d{4}$/.test(pin)){$("lerr").textContent="הקוד חייב להיות 4 ספרות";return}
   const k=mkKey(name),ph=await hsh(k+":"+pin+":sl");
   try{
-    let rec=await DB.get(k);
+    let rec=await DB.get(k);if(rec)fixU(rec);
     if(rec){if(rec.ph!==ph){$("lerr").textContent="השם תפוס או שהקוד שגוי";return}}
-    else{rec={name,ph,points:0,songs:0,correct:0,updated:Date.now()};await DB.put(k,rec)}
+    else{rec={name,ph,points:0,songs:0,correct:0,unlocked:1,lv:{},updated:Date.now()};await DB.put(k,rec)}
     U=rec;jset("sl_user",{k,ph});showApp();
   }catch(e){$("lerr").textContent="בעיית חיבור לשרת. נסה שוב."}
 }
 async function restore(){
   const s=jget("sl_user",null);
-  if(s){try{const rec=await DB.get(s.k);if(rec&&rec.ph===s.ph){U=rec;showApp();return}}catch(e){}}
+  if(s){try{const rec=await DB.get(s.k);if(rec&&rec.ph===s.ph){U=fixU(rec);showApp();return}}catch(e){}}
   $("vLogin").hidden=false;
 }
 async function saveUser(){U.updated=Date.now();try{await DB.put(mkKey(U.name),U)}catch(e){$("warn").textContent="הניקוד לא נשמר בשרת. בדוק חיבור."}}
 
 // ===== שירים =====
-let cache=jget("sl_c5",{}),pool=[];
+let cache=jget("sl_c6",{}),pool=[];
 let SEL=new Set(jget("sl_gen",["miz"]));
 const inSel=a=>a[3].some(g=>SEL.has(g));
 const isEng=a=>a[3].includes("eng");
@@ -174,10 +218,10 @@ async function songsOf(a){
     const r=await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&country=${isEng(a)?"US":"IL"}&media=music&entity=song&attribute=artistTerm&limit=50`);
     if(!r.ok)throw 0;
     const j=await r.json(),seen=new Set();
-    out=j.results.filter(x=>x.previewUrl&&x.artistName&&(isEng(a)||/[\u0590-\u05FF]/.test(x.trackName))&&(norm(x.artistName).includes(norm(a[0]))||norm(x.artistName).includes(a[1]))&&!BADE.test(x.trackName)&&!BADH.test(x.trackName)).map(x=>({id:x.trackId,n:clean(x.trackName),f:x.trackName,a:a[0],u:x.previewUrl})).filter(x=>{const k=norm(x.n);if(!k||seen.has(k))return false;seen.add(k);return true}).slice(0,25);
+    out=j.results.filter(x=>x.previewUrl&&x.artistName&&(isEng(a)||/[\u0590-\u05FF]/.test(x.trackName))&&(norm(x.artistName).includes(norm(a[0]))||norm(x.artistName).includes(a[1]))&&!BADE.test(x.trackName)&&!BADH.test(x.trackName)).map(x=>({id:x.trackId,n:clean(x.trackName),f:x.trackName,a:a[0],u:x.previewUrl})).filter(x=>{const k=norm(x.n);if(!k||seen.has(k))return false;seen.add(k);return true}).slice(0,25).map((x,i)=>({...x,r:i}));
     if(out.length)break;
   }
-  cache[a[1]]={t:Date.now(),s:out};jset("sl_c5",cache);rebuildPool();return out;
+  cache[a[1]]={t:Date.now(),s:out};jset("sl_c6",cache);rebuildPool();return out;
 }
 let pf=false;
 async function prefetch(){
@@ -192,8 +236,47 @@ async function prefetch(){
 }
 function pick(){const L=AR.filter(inSel);let t=L.reduce((s,a)=>s+a[2],0),r=Math.random()*t;for(const a of L){r-=a[2];if(r<=0)return a}return L[0]}
 function renderGen(){
-  $("gen").innerHTML=GEN.map(g=>`<button class="${SEL.has(g[0])?"on":""}" data-g="${g[0]}">${g[1]}</button>`).join("");
-  [...$("gen").children].forEach(b=>b.onclick=()=>{const g=b.dataset.g;if(SEL.has(g)){if(SEL.size>1)SEL.delete(g)}else SEL.add(g);jset("sl_gen",[...SEL]);renderGen();rebuildPool();prefetch()});
+  for(const id of["genL","genF"]){
+    $(id).innerHTML=GEN.map(g=>`<button class="${SEL.has(g[0])?"on":""}" data-g="${g[0]}">${g[1]}</button>`).join("");
+    [...$(id).children].forEach(b=>b.onclick=()=>{const g=b.dataset.g;if(SEL.has(g)){if(SEL.size>1)SEL.delete(g)}else SEL.add(g);jset("sl_gen",[...SEL]);renderGen();rebuildPool();prefetch()});
+  }
+}
+function wp(L){let t=L.reduce((s,a)=>s+a[2],0),r=Math.random()*t;for(const a of L){r-=a[2];if(r<=0)return a}return L[0]}
+
+// ===== שלבים =====
+// w: משקל מינימלי של האמן (פופולריות), r: טווח דירוג השיר אצל האמן (מהפופולרי יותר לפחות)
+const LV=[{t:"הלהיטים הגדולים",w:3,r:[0,3]},{t:"מוכרים מאוד",w:3,r:[3,7]},{t:"אוהבי מוזיקה",w:2,r:[0,10]},{t:"למקצוענים",w:1,r:[5,15]},{t:"אלופים",w:1,r:[10,25]}];
+const PER=5,PASS=3;
+let mode="free",lvl=1,lvI=0,lvC=0,lvP=0,inLevel=false;
+const SCR=["sHome","sLevels","sGame","sSum","sBoard","sHow"];
+function show(id){SCR.forEach(x=>$(x).hidden=x!==id);if(id!=="sGame")stop();window.scrollTo(0,0)}
+const starsOf=s=>"⭐".repeat(s)+"☆".repeat(3-s);
+const totStars=()=>Object.values(U.lv||{}).reduce((s,x)=>s+x.s,0);
+function renderHome(){
+  $("hi").textContent="שלום, "+U.name;
+  $("hs").textContent=`⭐ ${totStars()} · ${U.points} נקודות · שלב ${U.unlocked} מתוך ${LV.length}`;
+}
+function renderLevels(){
+  $("lvs").innerHTML=LV.map((L,i)=>{const n=i+1,lock=n>U.unlocked,b=(U.lv||{})["L"+n]||{b:0,s:0};
+    return `<div class="lv ${lock?"lock":""}" data-n="${n}"><div><b>${lock?"🔒 ":""}שלב ${n}</b> · ${L.t}<div class="sm" style="text-align:start">${lock?"עבור את שלב "+(n-1)+" כדי לפתוח":"שיא: "+b.b+" נקודות"}</div></div><div>${starsOf(b.s)}</div></div>`}).join("");
+  [...$("lvs").children].forEach(d=>d.onclick=()=>{if(!d.classList.contains("lock"))startLevel(+d.dataset.n)});
+}
+function startLevel(n){mode="level";lvl=n;lvI=0;lvC=0;lvP=0;inLevel=true;seenT=new Set();$("genFW").hidden=true;show("sGame");newRound()}
+function startFree(){mode="free";inLevel=false;$("genFW").hidden=false;show("sGame");newRound()}
+function setGH(){$("gh").textContent=mode==="level"?`שלב ${lvl} · ${LV[lvl-1].t} · שיר ${Math.min(over?lvI:lvI+1,PER)}/${PER} · ${lvP} נק׳`:"משחק חופשי"}
+function goHome(){if(inLevel&&!confirm("לצאת מהשלב? ההתקדמות בשלב הנוכחי תאבד."))return;inLevel=false;lid++;renderHome();show("sHome")}
+function showSum(){
+  inLevel=false;
+  const passed=lvC>=PASS,stars=lvC>=5?3:lvC>=4?2:lvC>=PASS?1:0,k="L"+lvl;
+  U.lv=U.lv||{};const prev=U.lv[k]||{b:0,s:0},newBest=lvP>prev.b;
+  U.lv[k]={b:Math.max(prev.b,lvP),s:Math.max(prev.s,stars)};
+  U.points=Object.values(U.lv).reduce((s,x)=>s+x.b,0);
+  let unl=false;
+  if(passed&&lvl<LV.length&&U.unlocked<=lvl){U.unlocked=lvl+1;unl=true}
+  saveUser();
+  $("sumBody").innerHTML=`<div class="res" style="color:var(--${passed?"ok":"bad"})">${passed?"🎉 עברת את שלב "+lvl+"!":"😔 לא עברת את שלב "+lvl}</div><div style="text-align:center;font-size:34px">${starsOf(stars)}</div><p class="sm" style="font-size:14px">ניחשת ${lvC} מתוך ${PER} שירים · ${lvP} נקודות${newBest?" · 🏅 שיא חדש!":""}</p>${unl?`<p class="sm" style="font-size:14px">🔓 נפתח שלב ${lvl+1}: ${LV[lvl].t}</p>`:""}${!passed?`<p class="sm" style="font-size:14px">צריך לנחש לפחות ${PASS} שירים כדי להמשיך</p>`:""}${passed&&lvl===LV.length?`<div class="res">🏆 סיימת את כל השלבים!</div>`:""}`;
+  $("sNext").hidden=!(passed&&lvl<LV.length);
+  show("sSum");
 }
 
 // ===== משחק =====
@@ -216,10 +299,13 @@ function render(){$("gs").innerHTML=gu.map(g=>`<li class="${g.s?"skip":"wrong"}"
 async function newRound(){
   stop();over=false;stage=0;gu=[];cur=null;const id=++lid;
   $("result").innerHTML="";$("inp").hidden=false;$("again").hidden=true;$("q").value="";$("play").disabled=true;
-  $("len").textContent="טוען שיר...";bars();render();
-  for(let t=0;t<8;t++){
+  $("len").textContent="טוען שיר...";setGH();bars();render();
+  const L=LV[lvl-1];
+  for(let t=0;t<12;t++){
     try{
-      const l=(await songsOf(pick())).filter(x=>!seenT.has(x.id));
+      let E=mode==="level"?AR.filter(a=>inSel(a)&&a[2]>=L.w):AR.filter(inSel);
+      if(!E.length)E=AR.filter(inSel);
+      const l=(await songsOf(wp(E))).filter(x=>!seenT.has(x.id)&&(mode!=="level"||(x.r>=L.r[0]&&x.r<L.r[1])));
       if(id!==lid)return;
       if(!l.length)continue;
       const x=l[Math.floor(Math.random()*l.length)];seenT.add(x.id);cur=x;
@@ -233,12 +319,14 @@ async function newRound(){
 function ok(t){const a=norm(t);return[cur.n,cur.f,cur.n+" - "+cur.a].some(x=>norm(x)===a)}
 async function finish(win){
   over=true;stop();const pts=win?PT[stage]:0;
-  U.songs++;if(win){U.points+=pts;U.correct++}
-  $("mP").textContent=U.points;bars(win);
+  U.songs++;if(win)U.correct++;
+  if(mode==="level"){lvP+=pts;if(win)lvC++;lvI++}
+  bars(win);
   $("result").innerHTML=`<div class="res" style="color:var(--${win?"ok":"bad"})">${win?"🎉 נכון! +"+pts+" נקודות":"😔 לא הפעם"}<br><span style="color:var(--tx)">${esc(cur.n)}</span><br><span style="color:var(--mu);font-size:15px">${esc(cur.a)}</span></div>`;
   $("len").textContent="אפשר להאזין לקטע המלא (30 שניות)";
   $("inp").hidden=true;$("again").hidden=false;
-  saveUser();
+  $("next").textContent=mode==="level"&&lvI>=PER?"לסיכום השלב ▶":"שיר הבא ▶";
+  setGH();saveUser();
 }
 function miss(t,s){
   gu.push({t,s});
@@ -248,32 +336,7 @@ function miss(t,s){
 function submit(){if(over||!cur)return;const t=$("q").value.trim();if(!t)return;if(ok(t)){gu.push({t});render();finish(true)}else miss(t,false)}
 $("play").onclick=play;
 $("skip").onclick=()=>{if(!over&&cur)miss("",true)};
-$("send").onclick=submit;$("next").onclick=newRound;$("bad").onclick=newRound;
+$("send").onclick=submit;$("bad").onclick=newRound;
+$("next").onclick=()=>{if(mode==="level"&&lvI>=PER)showSum();else newRound()};
 $("q").addEventListener("keydown",e=>{if(e.key==="Enter")submit()});
-$("q").addEventListener("input",()=>{
-  const v=norm($("q").value),b=$("sug");
-  if(!v){b.style.display="none";return}
-  const m=pool.filter(s=>norm(s).includes(v)).slice(0,8);
-  b.innerHTML=m.map(s=>`<div>${esc(s)}</div>`).join("");b.style.display=m.length?"block":"none";
-  [...b.children].forEach(d=>d.onclick=()=>{$("q").value=d.textContent;b.style.display="none"});
-});
-
-// ===== טבלה וניווט =====
-async function board(){
-  $("tb").innerHTML='<tr><td colspan="5">טוען...</td></tr>';
-  try{
-    const l=(await DB.top()).sort((a,b)=>b.points-a.points).slice(0,50),me=mkKey(U.name);
-    $("tb").innerHTML=l.map((p,i)=>`<tr class="${mkKey(p.name)===me?"me2":""}"><td>${i+1}${i<3?["🥇","🥈","🥉"][i]:""}</td><td>${esc(p.name)}</td><td>${p.points}</td><td>${p.songs}</td><td>${p.songs?Math.round(100*p.correct/p.songs)+"%":"-"}</td></tr>`).join("")||'<tr><td colspan="5">אין עדיין שחקנים</td></tr>';
-  }catch(e){$("tb").innerHTML='<tr><td colspan="5">שגיאה בטעינת הטבלה</td></tr>'}
-}
-function tab(g){$("vGame").hidden=!g;$("vBoard").hidden=g;$("tG").classList.toggle("on",g);$("tB").classList.toggle("on",!g);if(!g){stop();board()}}
-$("tG").onclick=()=>tab(true);$("tB").onclick=()=>tab(false);$("rf").onclick=board;
-$("tX").onclick=()=>{stop();localStorage.removeItem("sl_user");location.reload()};
-$("go").onclick=login;$("pin").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
-
-if(!FB)$("warn").textContent="מצב מקומי: הטבלה לא משותפת בין משתמשים עד שמחברים Firebase.";
-renderGen();rebuildPool();restore();
-if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});
-</script>
-</body>
-</html>
+$("q").addEventListener("inp
