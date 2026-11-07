@@ -340,3 +340,36 @@ $("send").onclick=submit;$("bad").onclick=newRound;
 $("next").onclick=()=>{if(mode==="level"&&lvI>=PER)showSum();else newRound()};
 $("q").addEventListener("keydown",e=>{if(e.key==="Enter")submit()});
 $("q").addEventListener("inp
+  const v=norm($("q").value),b=$("sug");
+    if(!v){b.style.display="none";return}
+  const m=pool.filter(s=>norm(s).includes(v)).slice(0,8);
+  b.innerHTML=m.map(s=>`<div>${esc(s)}</div>`).join("");b.style.display=m.length?"block":"none";
+  [...b.children].forEach(d=>d.onclick=()=>{$("q").value=d.textContent;b.style.display="none"});
+});
+
+// ===== טבלה וניווט =====
+async function board(){
+  $("tb").innerHTML='<tr><td colspan="5">טוען...</td></tr>';
+  try{
+    const l=(await DB.top()).sort((a,b)=>(b.points||0)-(a.points||0)).slice(0,50),me=mkKey(U.name);
+    $("tb").innerHTML=l.map((p,i)=>`<tr class="${mkKey(p.name)===me?"me2":""}"><td>${i+1}${i<3?["🥇","🥈","🥉"][i]:""}</td><td>${esc(p.name)}</td><td>${p.points||0}</td><td>${p.unlocked||1}</td><td>${Object.values(p.lv||{}).reduce((s,x)=>s+x.s,0)}⭐</td></tr>`).join("")||'<tr><td colspan="5">אין עדיין שחקנים</td></tr>';
+  }catch(e){$("tb").innerHTML='<tr><td colspan="5">שגיאה בטעינת הטבלה</td></tr>'}
+}
+document.querySelectorAll(".back").forEach(b=>b.onclick=goHome);
+$("bLv").onclick=()=>{renderLevels();show("sLevels")};
+$("bFree").onclick=startFree;
+$("bBoard").onclick=()=>{show("sBoard");board()};
+$("bHow").onclick=()=>show("sHow");
+$("bOut").onclick=()=>{stop();localStorage.removeItem("sl_user");location.reload()};
+$("rf").onclick=board;
+$("sNext").onclick=()=>startLevel(lvl+1);
+$("sRetry").onclick=()=>startLevel(lvl);
+$("sMenu").onclick=()=>{renderLevels();show("sLevels")};
+$("go").onclick=login;$("pin").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
+
+if(!FB)$("warn").textContent="מצב מקומי: הטבלה לא משותפת בין משתמשים עד שמחברים Firebase.";
+renderGen();rebuildPool();restore();
+if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
