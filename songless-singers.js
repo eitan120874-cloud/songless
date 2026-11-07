@@ -10,6 +10,9 @@
   const app = $("vApp");
   if (!app || typeof AR === "undefined" || typeof show !== "function") return;
 
+  const COMPLETE_BONUS = 500;           // בונוס על השלמת כל השירים של הזמר
+  const BONUS_MIN_RATIO = 0;            // 0 = מספיק לעבור על כל השירים. למשל 0.6 = צריך גם לנחש 60% מהם
+  const COUNT_TOWARD_TOTAL = true;      // true = הנקודות נספרות בטבלת המובילים ובדרגות. false = נשמרות בנפרד
   const MIN_STARS = 10;                 // מינימום שירים בסבב כדי לקבל כוכבים
   // רשימת זמרים להצגה. ריק = כל הזמרים שבמשחק. אפשר לכתוב שמות בעברית או באנגלית כמו ב-AR, למשל:
   // const ONLY = ["אייל גולן", "עומר אדם", "Queen"];
@@ -44,7 +47,7 @@
   list.id = "sSingers"; list.hidden = true;
   list.innerHTML = `<button class="b" id="sgBack" style="width:100%;margin-bottom:10px">↩ תפריט</button>
 <div class="card"><div style="font-size:20px;font-weight:600;text-align:center">🎤 זמרים</div>
-<p class="sm" style="margin:6px 0 10px">בחר זמר ונחש את כל השירים שלו, רק שלו. אפשר לסיים בכל רגע עם הכפתור "סיים".</p>
+<p class="sm" style="margin:6px 0 10px">בחר זמר ונחש את כל השירים שלו, רק שלו. ניקוד לכל שיר כמו תמיד (100/75/50/30/15), ו-${COMPLETE_BONUS} נקודות בונוס על השלמת כל השירים. אפשר לסיים בכל רגע עם "סיים".</p>
 <input id="sgQ" placeholder="חיפוש זמר..." autocomplete="off"><div class="gen" id="sgGen"></div><div class="err" id="sgMsg"></div></div>
 <div class="sg-grid" id="sgList"></div>`;
   const sum = document.createElement("section");
@@ -69,7 +72,7 @@
     const L = AR.filter(a => (!ONLY.length || ONLY.includes(a[0]) || ONLY.includes(a[1])) && (filt === "all" || a[3].includes(filt)) && (!q || norm(a[0]).includes(q) || a[1].includes(q))).sort((a, b) => b[2] - a[2]);
     $("sgList").innerHTML = L.map(a => {
       const r = sg[key(a)] || { s: 0, c: 0, n: 0 }, h = hue(a[1]);
-      return `<button class="sg-it" data-i="${AR.indexOf(a)}"><div class="sg-av" style="background:linear-gradient(145deg,hsl(${h} 65% 55%),hsl(${h} 70% 38%))">${ex(a[0][0].toUpperCase())}</div><span class="sg-n" dir="auto">${ex(a[0])}</span><span class="sg-s">${stars(r.s)}</span><span class="sg-b">${r.n ? `שיא: ${r.c}/${r.n}` : "עוד לא שוחק"}</span></button>`;
+      return `<button class="sg-it" data-i="${AR.indexOf(a)}"><div class="sg-av" style="background:linear-gradient(145deg,hsl(${h} 65% 55%),hsl(${h} 70% 38%))">${ex(a[0][0].toUpperCase())}</div><span class="sg-n" dir="auto">${ex(a[0])}</span><span class="sg-s">${stars(r.s)}</span><span class="sg-b">${r.n ? `שיא: ${r.c}/${r.n}${r.b ? " · " + r.b + " נק׳" : ""}` : "עוד לא שוחק"}</span></button>`;
     }).join("") || '<p class="sm">לא נמצאו זמרים</p>';
     [...$("sgList").children].forEach(d => { if (d.dataset.i) d.onclick = () => start(+d.dataset.i); });
   }
@@ -78,19 +81,29 @@
   const memc = {};
   async function getSongs(a) {
     if (memc[a[1]]) return memc[a[1]];
-    try {
-      for (const term of isEng(a) ? [a[0]] : [a[0], a[1]]) {
-        const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&country=${isEng(a) ? "US" : "IL"}&media=music&entity=song&attribute=artistTerm&limit=200`);
-        if (!r.ok) throw 0;
-        const j = await r.json(), seen = new Set();
-        const out = j.results.filter(x => x.previewUrl && x.artistName && (isEng(a) || /[\u0590-\u05FF]/.test(x.trackName)) && (norm(x.artistName).includes(norm(a[0])) || norm(x.artistName).includes(a[1])) && !BADE.test(x.trackName) && !BADH.test(x.trackName))
-          .map(x => ({ id: x.trackId, n: clean(x.trackName), f: x.trackName, a: a[0], u: x.previewUrl }))
-          .filter(x => { const k = norm(x.n); if (!k || seen.has(k)) return false; seen.add(k); return true; })
-          .map((x, i) => ({ ...x, r: i }));
-        if (out.length) return (memc[a[1]] = out);
-      }
-    } catch (e) {}
-    return songsOf(a);   // גיבוי: הרשימה הקצרה של המנוע הקיים
+    const eng = isEng(a), cc = eng ? "US" : "IL", B = "https://itunes.apple.com/";
+    const get = async u => { try { const r = await fetch(u); return r.ok ? (await r.json()).results || [] : []; } catch (e) { return []; } };
+    const q = (t, extra) => `${B}search?term=${encodeURIComponent(t)}&country=${cc}&media=music&entity=song&limit=200${extra || ""}`;
+    const jobs = (eng ? [a[0]] : [a[0], a[1]]).map(t => get(q(t, "&attribute=artistTerm")));
+    jobs.push(get(q(a[0])));
+    jobs.push((async () => {   // חיפוש לפי מזהה האמן ב-Apple Music
+      const ar = await get(`${B}search?term=${encodeURIComponent(a[0])}&country=${cc}&media=music&entity=musicArtist&limit=3`);
+      const m = ar.find(x => x.artistId && (norm(x.artistName || "").includes(norm(a[0])) || norm(x.artistName || "").includes(a[1])));
+      return m ? get(`${B}lookup?id=${m.artistId}&country=${cc}&entity=song&limit=200`) : [];
+    })());
+    let base = []; try { base = await songsOf(a); } catch (e) {}   // מה שכבר נטען במנוע הקיים
+    const all = (await Promise.all(jobs)).flat();
+    const seen = new Set(), out = [];
+    const add = x => { const k = norm(x.n); if (!k || seen.has(k)) return; seen.add(k); out.push({ ...x, r: out.length }); };
+    base.forEach(add);
+    for (const x of all) {
+      if ((x.wrapperType || "track") !== "track" || !x.previewUrl || !x.artistName || !x.trackName) continue;
+      if (!eng && !/[\u0590-\u05FF]/.test(x.trackName)) continue;
+      if (!(norm(x.artistName).includes(norm(a[0])) || norm(x.artistName).includes(a[1]))) continue;
+      if (BADE.test(x.trackName) || BADH.test(x.trackName)) continue;
+      add({ id: x.trackId, n: clean(x.trackName), f: x.trackName, a: a[0], u: x.previewUrl });
+    }
+    return (memc[a[1]] = out);
   }
 
   // ===== התחלת שלב של זמר =====
@@ -102,10 +115,11 @@
       const songs = await getSongs(a);
       if (songs.length < 3) { msg.style.color = ""; msg.textContent = "לא נמצאו מספיק שירים לזמר הזה."; return; }
       const q = shuffle(songs.slice());
-      S = { active: true, a, i, k: key(a), queue: q, songs, N: q.length, done: 0, ok: 0, pts: 0 };
+      S = { active: true, a, i, k: key(a), queue: q, songs, total: q.length, N: q.length, exhausted: false, done: 0, ok: 0, pts: 0 };
       mode = "singer"; seenT = new Set();
       $("genFW").hidden = true; msg.textContent = "";
       rebuildPool(); endBtn.hidden = false;
+      $("pool").textContent = `מאגר: ${songs.length} שירים של ${a[0]}`;
       show("sGame"); singerRound();
     } catch (e) { msg.style.color = ""; msg.textContent = "בעיית חיבור. נסה שוב."; }
     finally { busy = false; }
@@ -126,7 +140,7 @@
         $("play").disabled = false; bars(); return;
       } catch (e) { cur = null; }
     }
-    S.N = S.done; summary();   // נגמרו השירים לפני הזמן
+    S.exhausted = true; S.N = S.done; summary();   // נגמרו השירים לפני הזמן
   }
 
   function leave() { endBtn.hidden = true; S.active = false; mode = "free"; lid++; stop(); rebuildPool(); }
@@ -134,13 +148,25 @@
   function summary() {
     const n = S.N, ok = S.ok;
     const st = n < MIN_STARS ? 0 : ok >= Math.ceil(n * R3) ? 3 : ok >= Math.ceil(n * R2) ? 2 : ok >= Math.ceil(n * R1) ? 1 : 0;
-    let best = false;
+    const complete = (S.done >= S.total || S.exhausted) && S.total >= MIN_STARS && ok >= Math.ceil(S.total * BONUS_MIN_RATIO);
+    const bonus = complete ? COMPLETE_BONUS : 0, pts = S.pts + bonus;
+    let best = false, up = null;
     const u = user();
     if (u && n) {
       u.sg = u.sg || {};
       const p = u.sg[S.k] || { s: 0, c: 0, n: 0, b: 0 };
-      best = ok > p.c || !p.n;
-      u.sg[S.k] = { s: Math.max(p.s, st), c: best ? ok : p.c, n: best ? n : p.n, b: Math.max(p.b || 0, S.pts) };
+      best = pts > (p.b || 0) || !p.n;
+      u.sg[S.k] = { s: Math.max(p.s, st), c: best ? ok : p.c, n: best ? n : p.n, b: Math.max(p.b || 0, pts) };
+      if (COUNT_TOWARD_TOTAL) {
+        // נרשם כ"שלב" ב-U.lv, ולכן הקוד הקיים סוכם אותו לניקוד הכולל ולכוכבים בלי שום שינוי
+        u.lv = u.lv || {};
+        const pl = u.lv["S_" + S.k] || { b: 0, s: 0 };
+        const R = window.SLRanks, before = R ? R.rankOf(Number(u.points) || 0) : null;
+        u.lv["S_" + S.k] = { b: Math.max(pl.b, pts), s: Math.max(pl.s, st) };
+        u.points = Object.values(u.lv).reduce((t, x) => t + (x.b || 0), 0);
+        const after = R ? R.rankOf(u.points) : null;
+        if (R && R.levelUp && after.n > before.n) up = [before, after];
+      }
       try { saveUser(); } catch (e) {}
     }
     const a = S.a, i = S.i;
@@ -149,12 +175,14 @@
 <div class="res" style="color:var(--${st ? "ok" : "bad"})">${st ? "🎉 כל הכבוד!" : "😔 לא הפעם"}</div>
 <div style="font-size:34px">${stars(st)}</div>
 <div style="font-size:20px;font-weight:600;margin-top:6px" dir="auto">${ex(a[0])}</div>
-<p class="sm" style="font-size:14px">ניחשת ${ok} מתוך ${n} שירים · ${S.pts} נקודות${best && ok ? " · 🏅 שיא חדש!" : ""}</p>${n < MIN_STARS ? `<p class="sm">שחק לפחות ${MIN_STARS} שירים כדי לקבל כוכבים</p>` : ""}</div>
+<p class="sm" style="font-size:14px">ניחשת ${ok} מתוך ${n} שירים · ${pts} נקודות${best && pts ? " · 🏅 שיא חדש!" : ""}</p>
+${complete ? `<p class="sm" style="font-size:14px;color:var(--ok)">🎁 השלמת את כל השירים! בונוס +${bonus} נקודות</p>` : ""}${n < MIN_STARS ? `<p class="sm">שחק לפחות ${MIN_STARS} שירים כדי לקבל כוכבים</p>` : ""}</div>
 <div class="row"><button class="b p" id="sgAgain">שחק שוב</button></div>
 <div class="row" style="margin-top:8px"><button class="b" id="sgToList">לרשימת הזמרים</button></div>`;
     $("sgAgain").onclick = () => start(i);
     $("sgToList").onclick = () => { renderSingers(); show("sSingers"); };
     show("sSingerSum");
+    if (up) window.SLRanks.levelUp(up[0], up[1]);
   }
 
   // כפתור "סיים" במסך המשחק
@@ -188,7 +216,7 @@
   const oRB = window.rebuildPool;       // השלמה אוטומטית: רק שירי הזמר
   window.rebuildPool = function () {
     oRB.apply(this, arguments);
-    if (S.active) { pool = S.songs.map(s => s.n + " - " + s.a); $("pool").textContent = ""; }
+    if (S.active) { pool = S.songs.map(s => s.n + " - " + s.a); $("pool").textContent = `מאגר: ${S.songs.length} שירים של ${S.a[0]}`; }
   };
 
   const nb = $("next"), onNext = nb.onclick;

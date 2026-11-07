@@ -152,6 +152,6 @@ ${badge(b, 96)}
   // הסרת כרטיס הדרגה הישן ממסך הסיכום כשמתחילים שלב חדש
   document.addEventListener("click", () => { const s = $("rkSum"); if (s && $("sSum").hidden) s.remove(); }, true);
 
-  window.SLRanks = { RANKS, rankOf, refresh: mount };
+  window.SLRanks = { RANKS, rankOf, refresh: mount, levelUp };
   try { mount(); } catch (e) {}   // אם המשתמש כבר מחובר לפני שהקובץ נטען
 })();
