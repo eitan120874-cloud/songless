@@ -27,6 +27,7 @@
   const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const user = () => (typeof U !== "undefined" && U) || null;
 
+  const origSongs = window.songsOf;
   let S = { active: false }, filt = "all", qs = "", busy = false;
 
   // ===== עיצוב =====
@@ -79,31 +80,49 @@
 
   // ===== כל השירים של זמר =====
   const memc = {};
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  // השוואת שמות סלחנית לשוני בתעתיק (hanatsis / hanatzis וכו')
+  const fz = s => norm(s).replace(/[^a-z\u0590-\u05ff0-9 ]/g, "").replace(/tz|ts|z/g, "z").replace(/kh|ch/g, "h").replace(/ph/g, "f").replace(/ou|oo/g, "u").replace(/ee|ie|y/g, "i").replace(/[qc]/g, "k").replace(/(.)\1+/g, "$1").trim();
+  const sameName = (name, a) => !!name && (norm(name).includes(norm(a[0])) || fz(name).includes(fz(a[1])));
+
   async function getSongs(a) {
     if (memc[a[1]]) return memc[a[1]];
-    const eng = isEng(a), cc = eng ? "US" : "IL", B = "https://itunes.apple.com/";
-    const get = async u => { try { const r = await fetch(u); return r.ok ? (await r.json()).results || [] : []; } catch (e) { return []; } };
-    const q = (t, extra) => `${B}search?term=${encodeURIComponent(t)}&country=${cc}&media=music&entity=song&limit=200${extra || ""}`;
-    const jobs = (eng ? [a[0]] : [a[0], a[1]]).map(t => get(q(t, "&attribute=artistTerm")));
-    jobs.push(get(q(a[0])));
-    jobs.push((async () => {   // חיפוש לפי מזהה האמן ב-Apple Music
-      const ar = await get(`${B}search?term=${encodeURIComponent(a[0])}&country=${cc}&media=music&entity=musicArtist&limit=3`);
-      const m = ar.find(x => x.artistId && (norm(x.artistName || "").includes(norm(a[0])) || norm(x.artistName || "").includes(a[1])));
-      return m ? get(`${B}lookup?id=${m.artistId}&country=${cc}&entity=song&limit=200`) : [];
-    })());
-    let base = []; try { base = await songsOf(a); } catch (e) {}   // מה שכבר נטען במנוע הקיים
-    const all = (await Promise.all(jobs)).flat();
+    const eng = isEng(a), cc = eng ? "US" : "IL", B = "https://itunes.apple.com/", dbg = { raw: 0, fail: 0 };
+    getSongs.last = dbg;
+    // בקשות אחת אחרי השנייה, עם ניסיון חוזר, כדי לא להיחסם על ידי iTunes
+    const get = async u => {
+      for (let t = 0; t < 2; t++) {
+        try { const r = await fetch(u); if (r.ok) { const j = (await r.json()).results || []; dbg.raw += j.length; return j; } } catch (e) {}
+        if (!t) await sleep(1500);
+      }
+      dbg.fail++; return [];
+    };
+    const srch = t => get(`${B}search?term=${encodeURIComponent(t)}&country=${cc}&media=music&entity=song&attribute=artistTerm&limit=200`);
+    const found = [];   // [תוצאה, האם בטוחה (לפי מזהה האמן)]
+    for (const t of eng ? [a[0]] : [a[0], a[1]]) { (await srch(t)).forEach(x => found.push([x, false])); await sleep(300); }
+    let art = null;
+    for (const t of eng ? [a[0]] : [a[0], a[1]]) {
+      const ar = await get(`${B}search?term=${encodeURIComponent(t)}&country=${cc}&media=music&entity=musicArtist&limit=5`);
+      art = ar.find(x => x.artistId && sameName(x.artistName, a)); if (art) break; await sleep(300);
+    }
+    if (art) (await get(`${B}lookup?id=${art.artistId}&country=${cc}&entity=song&limit=200`)).forEach(x => { if (x.artistId === art.artistId) found.push([x, true]); });
+    let base = []; try { base = await origSongs(a); } catch (e) {}
     const seen = new Set(), out = [];
     const add = x => { const k = norm(x.n); if (!k || seen.has(k)) return; seen.add(k); out.push({ ...x, r: out.length }); };
     base.forEach(add);
-    for (const x of all) {
-      if ((x.wrapperType || "track") !== "track" || !x.previewUrl || !x.artistName || !x.trackName) continue;
-      if (!eng && !/[\u0590-\u05FF]/.test(x.trackName)) continue;
-      if (!(norm(x.artistName).includes(norm(a[0])) || norm(x.artistName).includes(a[1]))) continue;
+    const longName = a[1].trim().split(/\s+/).length >= 2;   // שם מלא: אפשר לקבל גם שירים עם שם באנגלית
+    for (const [x, sure] of found) {
+      if ((x.wrapperType || "track") !== "track" || !x.previewUrl || !x.trackName) continue;
+      if (!sure) {
+        if (!sameName(x.artistName, a)) continue;
+        if (!eng && !longName && !/[\u0590-\u05FF]/.test(x.trackName)) continue;
+      }
       if (BADE.test(x.trackName) || BADH.test(x.trackName)) continue;
       add({ id: x.trackId, n: clean(x.trackName), f: x.trackName, a: a[0], u: x.previewUrl });
     }
-    return (memc[a[1]] = out);
+    dbg.out = out.length;
+    if (out.length >= 3) memc[a[1]] = out;   // לא שומרים תוצאה ריקה, כדי שניסיון חוזר יעבוד
+    return out;
   }
 
   // ===== התחלת שלב של זמר =====
@@ -113,7 +132,7 @@
     msg.style.color = "var(--mu)"; msg.textContent = `טוען את כל השירים של ${a[0]}...`;
     try {
       const songs = await getSongs(a);
-      if (songs.length < 3) { msg.style.color = ""; msg.textContent = "לא נמצאו מספיק שירים לזמר הזה."; return; }
+      if (songs.length < 3) { const d = getSongs.last || {}; msg.style.color = ""; msg.textContent = `לא נמצאו מספיק שירים (iTunes החזיר ${d.raw} תוצאות, ${d.fail} בקשות נכשלו). נסה שוב בעוד כמה שניות.`; return; }
       const q = shuffle(songs.slice());
       S = { active: true, a, i, k: key(a), queue: q, songs, total: q.length, N: q.length, exhausted: false, done: 0, ok: 0, pts: 0 };
       mode = "singer"; seenT = new Set();
@@ -205,6 +224,12 @@ ${complete ? `<p class="sm" style="font-size:14px;color:var(--ok)">🎁 השלמ
       setGH();
     }
     return r;
+  };
+
+  // בזמן טעינת זמר, עוצרים את הטעינה ברקע של המשחק כדי ש-iTunes לא יחסום אותנו
+  window.songsOf = async function () {
+    while (busy) await sleep(400);
+    return origSongs.apply(this, arguments);
   };
 
   const oSet = window.setGH;
