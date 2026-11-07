@@ -1,5 +1,5 @@
 /* Songless – מצב "זמרים"
- * כל זמר הוא שלב בפני עצמו: 10 שירים של הזמר הזה בלבד.
+ * כל זמר הוא קטגוריה בפני עצמה: כל השירים של הזמר הזה (כל מה ש-iTunes מחזיר, עד 200 תוצאות), ורק שלו.
  * הקובץ נטען אחרי הסקריפט הראשי, משתמש במנוע המשחק הקיים (נגן, רמזים, ניקוד לשיר, השלמה אוטומטית)
  * ושומר התקדמות ב-U.sg (שדה נוסף ברשומת השחקן, נשמר ב-Firebase דרך saveUser הקיים).
  * הוא לא נוגע ב-U.points, בדרגות או בטבלת המובילים.
@@ -10,7 +10,11 @@
   const app = $("vApp");
   if (!app || typeof AR === "undefined" || typeof show !== "function") return;
 
-  const PER_STAGE = 10;                 // כמה שירים בשלב של זמר
+  const MIN_STARS = 10;                 // מינימום שירים בסבב כדי לקבל כוכבים
+  // רשימת זמרים להצגה. ריק = כל הזמרים שבמשחק. אפשר לכתוב שמות בעברית או באנגלית כמו ב-AR, למשל:
+  // const ONLY = ["אייל גולן", "עומר אדם", "Queen"];
+  const ONLY = [];
+
   const R1 = 0.6, R2 = 0.8, R3 = 0.9;   // אחוז הצלחה לכוכב / שני כוכבים / שלושה כוכבים
 
   const ex = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -40,7 +44,7 @@
   list.id = "sSingers"; list.hidden = true;
   list.innerHTML = `<button class="b" id="sgBack" style="width:100%;margin-bottom:10px">↩ תפריט</button>
 <div class="card"><div style="font-size:20px;font-weight:600;text-align:center">🎤 זמרים</div>
-<p class="sm" style="margin:6px 0 10px">בחר זמר ונחש ${PER_STAGE} שירים שלו בלבד. אפשר לשחק בכל זמר בכל סדר.</p>
+<p class="sm" style="margin:6px 0 10px">בחר זמר ונחש את כל השירים שלו, רק שלו. אפשר לסיים בכל רגע עם הכפתור "סיים".</p>
 <input id="sgQ" placeholder="חיפוש זמר..." autocomplete="off"><div class="gen" id="sgGen"></div><div class="err" id="sgMsg"></div></div>
 <div class="sg-grid" id="sgList"></div>`;
   const sum = document.createElement("section");
@@ -62,7 +66,7 @@
     $("sgGen").innerHTML = [["all", "הכל"], ...GEN].map(g => `<button class="${filt === g[0] ? "on" : ""}" data-g="${g[0]}">${g[1]}</button>`).join("");
     [...$("sgGen").children].forEach(b => b.onclick = () => { filt = b.dataset.g; renderSingers(); });
     const q = norm(qs);
-    const L = AR.filter(a => (filt === "all" || a[3].includes(filt)) && (!q || norm(a[0]).includes(q) || a[1].includes(q))).sort((a, b) => b[2] - a[2]);
+    const L = AR.filter(a => (!ONLY.length || ONLY.includes(a[0]) || ONLY.includes(a[1])) && (filt === "all" || a[3].includes(filt)) && (!q || norm(a[0]).includes(q) || a[1].includes(q))).sort((a, b) => b[2] - a[2]);
     $("sgList").innerHTML = L.map(a => {
       const r = sg[key(a)] || { s: 0, c: 0, n: 0 }, h = hue(a[1]);
       return `<button class="sg-it" data-i="${AR.indexOf(a)}"><div class="sg-av" style="background:linear-gradient(145deg,hsl(${h} 65% 55%),hsl(${h} 70% 38%))">${ex(a[0][0].toUpperCase())}</div><span class="sg-n" dir="auto">${ex(a[0])}</span><span class="sg-s">${stars(r.s)}</span><span class="sg-b">${r.n ? `שיא: ${r.c}/${r.n}` : "עוד לא שוחק"}</span></button>`;
@@ -70,19 +74,38 @@
     [...$("sgList").children].forEach(d => { if (d.dataset.i) d.onclick = () => start(+d.dataset.i); });
   }
 
+  // ===== כל השירים של זמר =====
+  const memc = {};
+  async function getSongs(a) {
+    if (memc[a[1]]) return memc[a[1]];
+    try {
+      for (const term of isEng(a) ? [a[0]] : [a[0], a[1]]) {
+        const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&country=${isEng(a) ? "US" : "IL"}&media=music&entity=song&attribute=artistTerm&limit=200`);
+        if (!r.ok) throw 0;
+        const j = await r.json(), seen = new Set();
+        const out = j.results.filter(x => x.previewUrl && x.artistName && (isEng(a) || /[\u0590-\u05FF]/.test(x.trackName)) && (norm(x.artistName).includes(norm(a[0])) || norm(x.artistName).includes(a[1])) && !BADE.test(x.trackName) && !BADH.test(x.trackName))
+          .map(x => ({ id: x.trackId, n: clean(x.trackName), f: x.trackName, a: a[0], u: x.previewUrl }))
+          .filter(x => { const k = norm(x.n); if (!k || seen.has(k)) return false; seen.add(k); return true; })
+          .map((x, i) => ({ ...x, r: i }));
+        if (out.length) return (memc[a[1]] = out);
+      }
+    } catch (e) {}
+    return songsOf(a);   // גיבוי: הרשימה הקצרה של המנוע הקיים
+  }
+
   // ===== התחלת שלב של זמר =====
   async function start(i) {
     if (busy) return; busy = true;
     const a = AR[i], msg = $("sgMsg");
-    msg.style.color = "var(--mu)"; msg.textContent = `טוען שירים של ${a[0]}...`;
+    msg.style.color = "var(--mu)"; msg.textContent = `טוען את כל השירים של ${a[0]}...`;
     try {
-      const songs = await songsOf(a);
+      const songs = await getSongs(a);
       if (songs.length < 3) { msg.style.color = ""; msg.textContent = "לא נמצאו מספיק שירים לזמר הזה."; return; }
       const q = shuffle(songs.slice());
-      S = { active: true, a, i, k: key(a), queue: q, songs, N: Math.min(PER_STAGE, q.length), done: 0, ok: 0, pts: 0 };
+      S = { active: true, a, i, k: key(a), queue: q, songs, N: q.length, done: 0, ok: 0, pts: 0 };
       mode = "singer"; seenT = new Set();
       $("genFW").hidden = true; msg.textContent = "";
-      rebuildPool();
+      rebuildPool(); endBtn.hidden = false;
       show("sGame"); singerRound();
     } catch (e) { msg.style.color = ""; msg.textContent = "בעיית חיבור. נסה שוב."; }
     finally { busy = false; }
@@ -106,11 +129,11 @@
     S.N = S.done; summary();   // נגמרו השירים לפני הזמן
   }
 
-  function leave() { S.active = false; mode = "free"; lid++; stop(); rebuildPool(); }
+  function leave() { endBtn.hidden = true; S.active = false; mode = "free"; lid++; stop(); rebuildPool(); }
 
   function summary() {
     const n = S.N, ok = S.ok;
-    const st = !n ? 0 : ok >= Math.ceil(n * R3) ? 3 : ok >= Math.ceil(n * R2) ? 2 : ok >= Math.ceil(n * R1) ? 1 : 0;
+    const st = n < MIN_STARS ? 0 : ok >= Math.ceil(n * R3) ? 3 : ok >= Math.ceil(n * R2) ? 2 : ok >= Math.ceil(n * R1) ? 1 : 0;
     let best = false;
     const u = user();
     if (u && n) {
@@ -126,13 +149,23 @@
 <div class="res" style="color:var(--${st ? "ok" : "bad"})">${st ? "🎉 כל הכבוד!" : "😔 לא הפעם"}</div>
 <div style="font-size:34px">${stars(st)}</div>
 <div style="font-size:20px;font-weight:600;margin-top:6px" dir="auto">${ex(a[0])}</div>
-<p class="sm" style="font-size:14px">ניחשת ${ok} מתוך ${n} שירים · ${S.pts} נקודות${best && ok ? " · 🏅 שיא חדש!" : ""}</p></div>
+<p class="sm" style="font-size:14px">ניחשת ${ok} מתוך ${n} שירים · ${S.pts} נקודות${best && ok ? " · 🏅 שיא חדש!" : ""}</p>${n < MIN_STARS ? `<p class="sm">שחק לפחות ${MIN_STARS} שירים כדי לקבל כוכבים</p>` : ""}</div>
 <div class="row"><button class="b p" id="sgAgain">שחק שוב</button></div>
 <div class="row" style="margin-top:8px"><button class="b" id="sgToList">לרשימת הזמרים</button></div>`;
     $("sgAgain").onclick = () => start(i);
     $("sgToList").onclick = () => { renderSingers(); show("sSingers"); };
     show("sSingerSum");
   }
+
+  // כפתור "סיים" במסך המשחק
+  const endBtn = document.createElement("button");
+  endBtn.className = "b"; endBtn.textContent = "סיים"; endBtn.hidden = true; endBtn.style.flex = "0 0 auto";
+  endBtn.onclick = () => {
+    if (!S.active) return;
+    if (!S.done) { leave(); renderSingers(); show("sSingers"); return; }
+    summary();
+  };
+  $("gh").parentNode.appendChild(endBtn);
 
   // ===== חיבור למנוע הקיים (עטיפות, בלי לשנות את הפונקציות עצמן) =====
   const oFinish = window.finish;
