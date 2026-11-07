@@ -91,7 +91,7 @@ tr.me2{background:color-mix(in srgb,var(--ac) 18%,transparent);font-weight:600}
     <button class="b back" style="width:100%;margin-bottom:10px">↩ תפריט</button>
     <p class="sm" style="margin:0 0 6px">סגנונות לשלבים:</p>
     <div class="gen" id="genL"></div>
-    <p class="sm" style="margin:0 0 10px">כדי לעבור שלב צריך לנחש לפחות 3 מתוך 5 שירים. קושי השלבים מבוסס על פופולריות השירים והאמנים.</p>
+    <p class="sm" style="margin:0 0 10px">כדי לעבור שלב צריך לנחש לפחות 15 מתוך 25 שירים. קושי השלבים מבוסס על פופולריות השירים והאמנים.</p>
     <div id="lvs"></div>
   </section>
 
@@ -136,7 +136,7 @@ tr.me2{background:color-mix(in srgb,var(--ac) 18%,transparent);font-weight:600}
       שומעים קטע קצר מתחילת שיר ומנחשים את שמו. כל ניחוש שגוי או דילוג פותחים קטע ארוך יותר.<br><br>
       <b>חמישה שלבי האזנה:</b> חצי שנייה, שנייה וחצי, 3 שניות, 8 שניות ו-15 שניות.<br>
       <b>ניקוד לפי השלב שבו פגעת:</b> 100, 75, 50, 30 או 15 נקודות. אם לא פגעת, אין נקודות.<br><br>
-      <b>מסלול שלבים:</b> בכל שלב 5 שירים. שלב 1 הוא הלהיטים הגדולים, והשירים נעשים פחות מוכרים ככל שעולים. כדי לעבור צריך לנחש לפחות 3 שירים. 3 שירים נותנים כוכב, 4 שירים שני כוכבים ו-5 שירים שלושה כוכבים.<br>
+      <b>מסלול שלבים:</b> בכל שלב 25 שירים ויש 10 שלבים. שלב 1 הוא הלהיטים הגדולים, והשירים נעשים פחות מוכרים ככל שעולים. כדי לעבור צריך לנחש לפחות 15 שירים. 15 שירים נותנים כוכב, 20 שירים שני כוכבים ו-23 שירים שלושה כוכבים.<br>
       הניקוד שלך בטבלה הוא סכום השיאים שלך בכל השלבים, כך שאפשר לשפר שלב ששיחקת.<br><br>
       <b>משחק חופשי:</b> שירים אקראיים מהסגנונות שבחרת, בלי ניקוד בטבלה.
     </div>
@@ -245,8 +245,18 @@ function wp(L){let t=L.reduce((s,a)=>s+a[2],0),r=Math.random()*t;for(const a of 
 
 // ===== שלבים =====
 // w: משקל מינימלי של האמן (פופולריות), r: טווח דירוג השיר אצל האמן (מהפופולרי יותר לפחות)
-const LV=[{t:"הלהיטים הגדולים",w:3,r:[0,3]},{t:"מוכרים מאוד",w:3,r:[3,7]},{t:"אוהבי מוזיקה",w:2,r:[0,10]},{t:"למקצוענים",w:1,r:[5,15]},{t:"אלופים",w:1,r:[10,25]}];
-const PER=5,PASS=3;
+const LV=[
+{t:"מתחיל",i:"🎵",w:3,r:[0,5]},
+{t:"חובב מוזיקה",i:"🎧",w:3,r:[2,9]},
+{t:"צייד להיטים",i:"🔎",w:2,r:[0,9]},
+{t:"מומחה פזמונים",i:"🎤",w:2,r:[3,12]},
+{t:"מקצוען מוזיקה",i:"🎼",w:2,r:[6,16]},
+{t:"מאסטר הביט",i:"🎹",w:1,r:[0,12]},
+{t:"גאון מוזיקלי",i:"🧠",w:1,r:[5,17]},
+{t:"אגדה מוזיקלית",i:"👑",w:1,r:[9,21]},
+{t:"אל המוזיקה",i:"⚡",w:1,r:[13,25]},
+{t:"בלתי מנוצח",i:"💎",w:1,r:[17,25]}];
+const PER=25,PASS=15;
 let mode="free",lvl=1,lvI=0,lvC=0,lvP=0,inLevel=false;
 const SCR=["sHome","sLevels","sGame","sSum","sBoard","sHow"];
 function show(id){SCR.forEach(x=>$(x).hidden=x!==id);if(id!=="sGame")stop();window.scrollTo(0,0)}
@@ -258,7 +268,7 @@ function renderHome(){
 }
 function renderLevels(){
   $("lvs").innerHTML=LV.map((L,i)=>{const n=i+1,lock=n>U.unlocked,b=(U.lv||{})["L"+n]||{b:0,s:0};
-    return `<div class="lv ${lock?"lock":""}" data-n="${n}"><div><b>${lock?"🔒 ":""}שלב ${n}</b> · ${L.t}<div class="sm" style="text-align:start">${lock?"עבור את שלב "+(n-1)+" כדי לפתוח":"שיא: "+b.b+" נקודות"}</div></div><div>${starsOf(b.s)}</div></div>`}).join("");
+    return `<div class="lv ${lock?"lock":""}" data-n="${n}"><div><b>${lock?"🔒 ":""}שלב ${n}</b> · ${L.i} ${L.t}<div class="sm" style="text-align:start">${lock?"עבור את שלב "+(n-1)+" כדי לפתוח":"שיא: "+b.b+" נקודות"}</div></div><div>${starsOf(b.s)}</div></div>`}).join("");
   [...$("lvs").children].forEach(d=>d.onclick=()=>{if(!d.classList.contains("lock"))startLevel(+d.dataset.n)});
 }
 function startLevel(n){mode="level";lvl=n;lvI=0;lvC=0;lvP=0;inLevel=true;seenT=new Set();$("genFW").hidden=true;show("sGame");newRound()}
@@ -267,7 +277,7 @@ function setGH(){$("gh").textContent=mode==="level"?`שלב ${lvl} · ${LV[lvl-1
 function goHome(){if(inLevel&&!confirm("לצאת מהשלב? ההתקדמות בשלב הנוכחי תאבד."))return;inLevel=false;lid++;renderHome();show("sHome")}
 function showSum(){
   inLevel=false;
-  const passed=lvC>=PASS,stars=lvC>=5?3:lvC>=4?2:lvC>=PASS?1:0,k="L"+lvl;
+  const passed=lvC>=PASS,stars=lvC>=23?3:lvC>=20?2:lvC>=PASS?1:0,k="L"+lvl;
   U.lv=U.lv||{};const prev=U.lv[k]||{b:0,s:0},newBest=lvP>prev.b;
   U.lv[k]={b:Math.max(prev.b,lvP),s:Math.max(prev.s,stars)};
   U.points=Object.values(U.lv).reduce((s,x)=>s+x.b,0);
@@ -300,8 +310,8 @@ async function newRound(){
   stop();over=false;stage=0;gu=[];cur=null;const id=++lid;
   $("result").innerHTML="";$("inp").hidden=false;$("again").hidden=true;$("q").value="";$("play").disabled=true;
   $("len").textContent="טוען שיר...";setGH();bars();render();
-  const L=LV[lvl-1];
-  for(let t=0;t<12;t++){
+  const L0=LV[lvl-1];
+  for(let t=0;t<14;t++){const L=t<6?L0:{w:1,r:t<9?L0.r:[0,25]};
     try{
       let E=mode==="level"?AR.filter(a=>inSel(a)&&a[2]>=L.w):AR.filter(inSel);
       if(!E.length)E=AR.filter(inSel);
