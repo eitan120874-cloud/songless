@@ -339,7 +339,7 @@ $("skip").onclick=()=>{if(!over&&cur)miss("",true)};
 $("send").onclick=submit;$("bad").onclick=newRound;
 $("next").onclick=()=>{if(mode==="level"&&lvI>=PER)showSum();else newRound()};
 $("q").addEventListener("keydown",e=>{if(e.key==="Enter")submit()});
-$("q").addEventListener("inp
+$("q").addEventListener("input",()=>{
   const v=norm($("q").value),b=$("sug");
     if(!v){b.style.display="none";return}
   const m=pool.filter(s=>norm(s).includes(v)).slice(0,8);
