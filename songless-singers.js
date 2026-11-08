@@ -259,3 +259,43 @@ ${complete ? `<p class="sm" style="font-size:14px;color:var(--ok)">🎁 השלמ
     return onBk.call(this, e);
   };
 })();
+
+/* ===== בקרת עוצמת שמע (ווליום) =====
+ * מופיעה במסך המשחק מתחת לשורת "קטע של ... שניות". הבחירה נשמרת במכשיר.
+ * באייפון הדפדפן לא מאפשר לאתר לשנות עוצמה, ולכן שם הסליידר לא יוצג (משתמשים בכפתורי המכשיר).
+ */
+(function () {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  if (typeof A === "undefined" || !$("len")) return;
+  try { const t = new Audio(); t.volume = 0.5; if (t.volume !== 0.5) return; } catch (e) { return; }   // לא נתמך (למשל iOS)
+
+  let vol = 1;
+  try { const v = parseFloat(localStorage.getItem("sl_vol")); if (v >= 0 && v <= 1) vol = v; } catch (e) {}
+
+  const css = document.createElement("style");
+  css.textContent = `.vol-row{display:flex;align-items:center;justify-content:center;gap:10px;margin:10px auto 0;max-width:280px;color:var(--mu);font-size:13px}
+.vol-row button{border:0;background:none;font-size:20px;cursor:pointer;padding:2px 4px;color:inherit}
+.vol-row input{flex:1;min-width:0;width:auto;padding:0;border:0;background:none;accent-color:var(--ac);height:28px;cursor:pointer}
+.vol-row span{min-width:38px;text-align:start}`;
+  document.head.appendChild(css);
+
+  const row = document.createElement("div");
+  row.className = "vol-row";
+  row.innerHTML = `<button type="button" id="volIc" aria-label="השתק">🔊</button><input id="volR" type="range" min="0" max="100" step="1" aria-label="עוצמת שמע"><span id="volT"></span>`;
+  $("len").after(row);
+
+  let last = vol || 1;
+  function set(v, save) {
+    vol = Math.max(0, Math.min(1, v));
+    A.volume = vol;
+    $("volR").value = Math.round(vol * 100);
+    $("volT").textContent = Math.round(vol * 100) + "%";
+    $("volIc").textContent = vol === 0 ? "🔇" : vol < 0.5 ? "🔈" : "🔊";
+    if (save) try { localStorage.setItem("sl_vol", String(vol)); } catch (e) {}
+  }
+  $("volR").oninput = e => { const v = e.target.value / 100; if (v > 0) last = v; set(v, true); };
+  $("volIc").onclick = () => set(vol === 0 ? last : 0, true);   // לחיצה על האייקון = השתקה / ביטול השתקה
+  A.addEventListener("play", () => { A.volume = vol; });         // מוודא שהעוצמה נשמרת בכל שיר
+  set(vol, false);
+})();
