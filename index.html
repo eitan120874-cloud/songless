@@ -130,6 +130,8 @@ tr.me2{background:color-mix(in srgb,var(--ac) 18%,transparent);font-weight:600}
       <p class="sm" style="margin:0 0 8px">5 שירים, אותם שירים לשניכם. מי שצבר יותר נקודות מנצח.</p>
       <p class="sm" style="margin:0 0 6px">סגנונות (החדר ייווצר לפי הבחירה שלך):</p>
       <div class="gen" id="genD" style="justify-content:center"></div>
+      <p class="sm" style="margin:8px 0 6px">או דו-קרב על זמר מסוים:</p>
+      <select id="dArt" style="width:100%;padding:12px;font-size:16px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);margin-bottom:8px"></select>
       <button class="b p big" id="dCreate" style="margin-top:8px">➕ צור חדר חדש</button>
       <p class="sm" style="margin:0 0 6px">או הכנס קוד של חבר:</p>
       <input id="dCode" maxlength="4" placeholder="קוד חדר (4 תווים)" autocomplete="off" style="text-transform:uppercase;text-align:center;letter-spacing:4px">
@@ -139,6 +141,7 @@ tr.me2{background:color-mix(in srgb,var(--ac) 18%,transparent);font-weight:600}
     <div class="card" id="dWait" hidden style="text-align:center">
       <div class="sm" style="font-size:14px">קוד החדר</div>
       <div id="dShow" style="font-size:48px;letter-spacing:10px;font-weight:700;margin:6px 0"></div>
+      <div class="sm" id="dArtLbl" style="font-size:15px;margin-bottom:6px"></div>
       <div class="sm" style="font-size:14px">שלח את הקוד לחבר וחכה שיצטרף. המשחק יתחיל אוטומטית.</div>
     </div>
   </section>
@@ -318,7 +321,7 @@ function renderLevels(){
 }
 function startLevel(n){mode="level";lvl=n;lvI=0;lvC=0;lvP=0;inLevel=true;seenT=new Set();$("genFW").hidden=true;show("sGame");newRound()}
 function startFree(){mode="free";inLevel=false;$("genFW").hidden=false;show("sGame");newRound()}
-function setGH(){if(mode==="duel"&&D){const n=D.songs.length,o=D.opp;$("gh").textContent=`⚔️ שיר ${Math.min(over?D.idx:D.idx+1,n)}/${n} · ${D.pts} נק׳ | ${D.oppName||"חבר"}: ${o?o.pts:0} נק׳ (${o?o.d:0}/${n})`;return}$("gh").textContent=mode==="level"?`שלב ${lvl} · ${LV[lvl-1].t} · שיר ${Math.min(over?lvI:lvI+1,PER)}/${PER} · ${lvP} נק׳`:"משחק חופשי"}
+function setGH(){if(mode==="duel"&&D){const n=D.songs.length,o=D.opp;$("gh").textContent=`⚔️ ${D.artist?D.artist+" · ":""}שיר ${Math.min(over?D.idx:D.idx+1,n)}/${n} · ${D.pts} נק׳ | ${D.oppName||"חבר"}: ${o?o.pts:0} נק׳ (${o?o.d:0}/${n})`;return}$("gh").textContent=mode==="level"?`שלב ${lvl} · ${LV[lvl-1].t} · שיר ${Math.min(over?lvI:lvI+1,PER)}/${PER} · ${lvP} נק׳`:"משחק חופשי"}
 function goHome(){
   if(mode==="duel"&&D&&D.started&&!D.fin&&!confirm("לצאת מהדו-קרב? החבר ימשיך בלעדיך."))return;
   if(inLevel&&!confirm("לצאת מהשלב? ההתקדמות בשלב הנוכחי תאבד."))return;
@@ -442,14 +445,21 @@ if(location.hash==="#admin")$("bExp").hidden=false;
 
 // ===== דו-קרב בין חברים =====
 const DN=5;
+(function(){const sel=$("dArt");sel.innerHTML='<option value="">🎲 מעורב (לפי הסגנונות שלמעלה)</option>'+[...AR].sort((x,y)=>x[0].localeCompare(y[0],"he")).map(a=>`<option value="${a[1]}">🎤 ${esc(a[0])}</option>`).join("")})();
 let D=null,dPoll=0;
 const DU=c=>`${FB}/duels/${c}`;
 const randCode=()=>{const A="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let t="";for(let i=0;i<4;i++)t+=A[Math.floor(Math.random()*A.length)];return t};
 async function dget(c,p=""){const r=await fetch(`${DU(c)}${p}.json`);if(!r.ok)throw 0;return r.json()}
 async function dput(c,p,v){const r=await fetch(`${DU(c)}${p}.json`,{method:"PUT",body:JSON.stringify(v)});if(!r.ok)throw 0}
 function duelReset(){clearInterval(dPoll);D=null;$("dMenu").hidden=false;$("dWait").hidden=true;$("dErr").textContent="";$("dCode").value="";renderGen()}
-async function duelSongs(n){
+async function duelSongs(n,art){
   const out=[],ids=new Set();
+  if(art){
+    const a=AR.find(x=>x[1]===art);
+    const l=(await songsOf(a)).filter(x=>x.r<40);
+    for(let i=l.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[l[i],l[j]]=[l[j],l[i]]}
+    return l.slice(0,n).map(x=>({id:x.id,n:x.n,f:x.f,a:x.a,u:x.u}));
+  }
   for(let t=0;t<40&&out.length<n;t++){
     try{
       const l=(await songsOf(wp(AR.filter(inSel)))).filter(x=>!ids.has(x.id)&&x.r<12);
@@ -464,12 +474,14 @@ async function duelCreate(){
   if(!FB){$("dErr").textContent="דו-קרב דורש חיבור לשרת (Firebase).";return}
   $("dErr").textContent="יוצר חדר...";
   try{
-    const songs=await duelSongs(DN);
-    if(songs.length<DN){$("dErr").textContent="לא הצלחתי לטעון שירים. נסה שוב.";return}
+    const art=$("dArt").value,artName=art?AR.find(x=>x[1]===art)[0]:"";
+    const songs=await duelSongs(DN,art);
+    if(songs.length<DN){$("dErr").textContent=art?"לא נמצאו מספיק שירים לזמר הזה. בחר זמר אחר.":"לא הצלחתי לטעון שירים. נסה שוב.";return}
     let code;for(let i=0;i<8;i++){code=randCode();if(!(await dget(code)))break}
     const uid=Math.random().toString(36).slice(2);
-    await dput(code,"",{created:Date.now(),songs,h:{name:U.name,uid}});
-    D={code,role:"h",uid,songs,idx:0,pts:0,ms:0,opp:null,oppName:""};
+    await dput(code,"",{created:Date.now(),songs,artist:artName,h:{name:U.name,uid}});
+    D={code,role:"h",uid,songs,artist:artName,idx:0,pts:0,ms:0,opp:null,oppName:""};
+    $("dArtLbl").textContent=artName?"🎤 דו-קרב על: "+artName:"🎲 שירים מעורבים";
     $("dErr").textContent="";$("dMenu").hidden=true;$("dWait").hidden=false;$("dShow").textContent=code;
     clearInterval(dPoll);
     dPoll=setInterval(async()=>{
@@ -490,7 +502,7 @@ async function duelJoin(){
     await dput(code,"/g",{name:U.name,uid});
     const r2=await dget(code);
     if(!r2.g||r2.g.uid!==uid){$("dErr").textContent="החדר כבר מלא";return}
-    D={code,role:"g",uid,songs:r2.songs,idx:0,pts:0,ms:0,opp:null,oppName:r2.h.name};
+    D={code,role:"g",uid,songs:r2.songs,artist:r2.artist||"",idx:0,pts:0,ms:0,opp:null,oppName:r2.h.name};
     $("dErr").textContent="";startDuel();
   }catch(e){$("dErr").textContent="שגיאת חיבור לשרת. נסה שוב."}
 }
