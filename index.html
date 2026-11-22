@@ -212,13 +212,14 @@ let cache=jget("sl_c6",{}),pool=[];
 let BUILT={},builtP=Promise.resolve();
 async function loadBuilt(){
   const ac=new AbortController(),to=setTimeout(()=>ac.abort(),25000);
-  try{const r=await fetch("songs.json",{signal:ac.signal});if(r.ok)BUILT=await r.json()}catch(e){}
+  try{const r=await fetch("songs.json",{signal:ac.signal});if(r.ok){const j=await r.json();for(const a of AR){const L=j[a[1]];if(L)j[a[1]]=L.map((x,i)=>({id:x.id,n:x.n,f:x.f||x.n,a:a[0],u:x.u,r:i}))}BUILT=j}}catch(e){}
   clearTimeout(to);
 }
+let poolN=[];
 let SEL=new Set(jget("sl_gen",["miz"]));
 const inSel=a=>a[3].some(g=>SEL.has(g));
 const isEng=a=>a[3].includes("eng");
-function rebuildPool(){pool=[];for(const a of AR){const L=BUILT[a[1]]||(cache[a[1]]&&cache[a[1]].s);if(!inSel(a)||!L)continue;for(const s of L)pool.push(s.n+" - "+s.a)}$("pool").textContent=pool.length?`מאגר: ${pool.length} שירים`:""}
+function rebuildPool(){pool=[];poolN=[];for(const a of AR){const L=BUILT[a[1]]||(cache[a[1]]&&cache[a[1]].s);if(!inSel(a)||!L)continue;for(const s of L){const d=s.n+" - "+s.a;pool.push(d);poolN.push(norm(d))}}$("pool").textContent=pool.length?`מאגר: ${pool.length} שירים`:""}
 async function songsOf(a,force){
   await builtP;
   if(!force&&BUILT[a[1]]&&BUILT[a[1]].length)return BUILT[a[1]];
@@ -367,12 +368,17 @@ $("skip").onclick=()=>{if(!over&&cur)miss("",true)};
 $("send").onclick=submit;$("bad").onclick=newRound;
 $("next").onclick=()=>{if(mode==="level"&&lvI>=PER)showSum();else newRound()};
 $("q").addEventListener("keydown",e=>{if(e.key==="Enter")submit()});
+let qt=0;
 $("q").addEventListener("input",()=>{
-  const v=norm($("q").value),b=$("sug");
+  clearTimeout(qt);
+  qt=setTimeout(()=>{
+    const v=norm($("q").value),b=$("sug");
     if(!v){b.style.display="none";return}
-  const m=pool.filter(s=>norm(s).includes(v)).slice(0,8);
-  b.innerHTML=m.map(s=>`<div>${esc(s)}</div>`).join("");b.style.display=m.length?"block":"none";
-  [...b.children].forEach(d=>d.onclick=()=>{$("q").value=d.textContent;b.style.display="none"});
+    const m=[];
+    for(let i=0;i<poolN.length&&m.length<8;i++)if(poolN[i].includes(v))m.push(pool[i]);
+    b.innerHTML=m.map(x=>`<div>${esc(x)}</div>`).join("");b.style.display=m.length?"block":"none";
+    [...b.children].forEach(d=>d.onclick=()=>{$("q").value=d.textContent;b.style.display="none"});
+  },120);
 });
 
 // ===== טבלה וניווט =====
@@ -390,7 +396,7 @@ async function buildFile(){
     $("warn").textContent=`בונה קובץ שירים... ${++i}/${AR.length} (${a[0]})`;
     let l=null;
     for(let t=0;t<3&&!l;t++){try{l=await songsOf(a,true)}catch(e){await new Promise(r=>setTimeout(r,15000))}}
-    out[a[1]]=l||BUILT[a[1]]||[];
+    out[a[1]]=(l||BUILT[a[1]]||[]).map(x=>x.f&&x.f!==x.n?{id:x.id,n:x.n,f:x.f,u:x.u}:{id:x.id,n:x.n,u:x.u});
     await new Promise(r=>setTimeout(r,3200));
   }
   const el=document.createElement("a");
