@@ -244,11 +244,10 @@ async function loadBuilt(){
   try{const r=await fetch("songs.json",{signal:ac.signal});if(r.ok){const j=await r.json();for(const a of AR){const L=j[a[1]];if(L)j[a[1]]=L.map((x,i)=>({id:x.id,n:x.n,f:x.f||x.n,a:a[0],u:x.u,r:i}))}BUILT=j}}catch(e){}
   clearTimeout(to);
 }
-let poolN=[];
 let SEL=new Set(jget("sl_gen",["miz"]));
 const inSel=a=>a[3].some(g=>SEL.has(g));
 const isEng=a=>a[3].includes("eng");
-function rebuildPool(){pool=[];poolN=[];for(const a of AR){const L=BUILT[a[1]]||(cache[a[1]]&&cache[a[1]].s);if(!inSel(a)||!L)continue;for(const s of L){const d=s.n+" - "+s.a;pool.push(d);poolN.push(norm(d))}}$("pool").textContent=pool.length?`מאגר: ${pool.length} שירים`:""}
+function rebuildPool(){pool=[];for(const a of AR){const L=BUILT[a[1]]||(cache[a[1]]&&cache[a[1]].s);if(!inSel(a)||!L)continue;for(const s of L)pool.push(s.n+" - "+s.a)}$("pool").textContent=pool.length?`מאגר: ${pool.length} שירים`:""}
 async function songsOf(a,force){
   await builtP;
   if(!force&&BUILT[a[1]]&&BUILT[a[1]].length)return BUILT[a[1]];
@@ -358,7 +357,7 @@ function bars(win){
   $("lbl").innerHTML=ST.map((s,i)=>`<span>${s}ש׳<br>${PT[i]}</span>`).join("");
   if(cur&&!over)$("len").textContent=`קטע של ${ST[stage]} שניות · שווה ${PT[stage]} נקודות`;
 }
-function render(){$("gs").innerHTML=gu.map(g=>`<li class="${g.s?"skip":"wrong"}">${g.s?"⏭ דילוג":"✗ "+esc(g.t)}</li>`).join("")}
+function render(){$("gs").innerHTML=gu.map(g=>`<li class="${g.s?"skip":"wrong"}">${g.s||g.t==null||g.t===""?"⏭ דילוג":"✗ "+esc(g.t)}</li>`).join("")}
 async function newRound(){
   if(mode==="duel")return duelRound();
   stop();over=false;stage=0;gu=[];cur=null;const id=++lid;
@@ -394,7 +393,7 @@ async function finish(win){
   setGH();if(mode!=="duel")saveUser();
 }
 function miss(t,s){
-  gu.push({t,s});
+  t=t==null?"":String(t);gu.push({t,s:!!s||!t});
   if(gu.length>=ST.length){render();finish(false);return}
   stage++;bars();render();$("q").value="";$("sug").style.display="none";play();
 }
@@ -404,6 +403,8 @@ $("skip").onclick=()=>{if(!over&&cur)miss("",true)};
 $("send").onclick=submit;$("bad").onclick=newRound;
 $("next").onclick=()=>{if(mode==="duel"){if(D.fin)showDuelEnd();else newRound();return}if(mode==="level"&&lvI>=PER)showSum();else newRound()};
 $("q").addEventListener("keydown",e=>{if(e.key==="Enter")submit()});
+const NC=new Map();
+const nz=x=>{let v=NC.get(x);if(v===undefined){v=norm(x);NC.set(x,v)}return v};
 let qt=0;
 $("q").addEventListener("input",()=>{
   clearTimeout(qt);
@@ -411,7 +412,7 @@ $("q").addEventListener("input",()=>{
     const v=norm($("q").value),b=$("sug");
     if(!v){b.style.display="none";return}
     const m=[];
-    for(let i=0;i<poolN.length&&m.length<8;i++)if(poolN[i].includes(v))m.push(pool[i]);
+    for(let i=0;i<pool.length&&m.length<8;i++){const x=pool[i];if(typeof x==="string"&&nz(x).includes(v))m.push(x)}
     b.innerHTML=m.map(x=>`<div>${esc(x)}</div>`).join("");b.style.display=m.length?"block":"none";
     [...b.children].forEach(d=>d.onclick=()=>{$("q").value=d.textContent;b.style.display="none"});
   },120);
