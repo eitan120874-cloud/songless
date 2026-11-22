@@ -220,10 +220,18 @@ async function songsOf(a,force){
   const c=cache[a[1]];if(!force&&c&&Date.now()-c.t<864e5)return c.s;
   let out=[];
   for(const term of isEng(a)?[a[0]]:[a[0],a[1]]){
-    const r=await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&country=${isEng(a)?"US":"IL"}&media=music&entity=song&attribute=artistTerm&limit=50`);
-    if(!r.ok)throw 0;
-    const j=await r.json(),seen=new Set();
-    out=j.results.filter(x=>x.previewUrl&&x.artistName&&(isEng(a)||/[\u0590-\u05FF]/.test(x.trackName))&&(norm(x.artistName).includes(norm(a[0]))||norm(x.artistName).includes(a[1]))&&!BADE.test(x.trackName)&&!BADH.test(x.trackName)).map(x=>({id:x.trackId,n:clean(x.trackName),f:x.trackName,a:a[0],u:x.previewUrl})).filter(x=>{const k=norm(x.n);if(!k||seen.has(k))return false;seen.add(k);return true}).slice(0,25).map((x,i)=>({...x,r:i}));
+    let raw=[];
+    // בבניית הקובץ (force) טוענים כמה עמודים של 200 שירים כדי לקבל את כל הקטלוג של האמן
+    for(let off=0;off<(force?1400:200);off+=200){
+      const r=await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&country=${isEng(a)?"US":"IL"}&media=music&entity=song&attribute=artistTerm&limit=200&offset=${off}`);
+      if(!r.ok){if(off>0)break;throw 0}
+      const j=await r.json(),res=j.results||[];
+      raw=raw.concat(res);
+      if(res.length<200)break;
+      await new Promise(f=>setTimeout(f,3200));
+    }
+    const seen=new Set();
+    out=raw.filter(x=>x.previewUrl&&x.artistName&&(isEng(a)||/[\u0590-\u05FF]/.test(x.trackName))&&(norm(x.artistName).includes(norm(a[0]))||norm(x.artistName).includes(a[1]))&&!BADE.test(x.trackName)&&!BADH.test(x.trackName)).map(x=>({id:x.trackId,n:clean(x.trackName),f:x.trackName,a:a[0],u:x.previewUrl})).filter(x=>{const k=norm(x.n);if(!k||seen.has(k))return false;seen.add(k);return true}).map((x,i)=>({...x,r:i}));
     if(out.length)break;
   }
   cache[a[1]]={t:Date.now(),s:out};jset("sl_c6",cache);rebuildPool();return out;
