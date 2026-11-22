@@ -82,6 +82,7 @@ tr.me2{background:color-mix(in srgb,var(--ac) 18%,transparent);font-weight:600}
     </div>
     <button class="b p big" id="bLv">🎯 מסלול שלבים</button>
     <button class="b big" id="bFree">🎲 משחק חופשי</button>
+    <button class="b big" id="bDuel">⚔️ דו-קרב בין חברים</button>
     <button class="b big" id="bBoard">🏆 טבלת מובילים</button>
     <button class="b big" id="bHow">❓ איך משחקים</button>
     <button class="b big" id="bExp" hidden>📦 בנה songs.json</button>
@@ -120,6 +121,31 @@ tr.me2{background:color-mix(in srgb,var(--ac) 18%,transparent);font-weight:600}
     <div class="card" id="sumBody"></div>
     <div class="row"><button class="b p" id="sNext">שלב הבא ▶</button></div>
     <div class="row" style="margin-top:8px"><button class="b" id="sRetry">שחק שוב</button><button class="b" id="sMenu">לשלבים</button></div>
+  </section>
+
+  <section id="sDuel" hidden>
+    <button class="b back" style="width:100%;margin-bottom:10px">↩ תפריט</button>
+    <div class="card" id="dMenu">
+      <p style="margin:0 0 10px;text-align:center;font-weight:600">⚔️ דו-קרב בין חברים</p>
+      <p class="sm" style="margin:0 0 8px">5 שירים, אותם שירים לשניכם. מי שצבר יותר נקודות מנצח.</p>
+      <p class="sm" style="margin:0 0 6px">סגנונות (החדר ייווצר לפי הבחירה שלך):</p>
+      <div class="gen" id="genD" style="justify-content:center"></div>
+      <button class="b p big" id="dCreate" style="margin-top:8px">➕ צור חדר חדש</button>
+      <p class="sm" style="margin:0 0 6px">או הכנס קוד של חבר:</p>
+      <input id="dCode" maxlength="4" placeholder="קוד חדר (4 תווים)" autocomplete="off" style="text-transform:uppercase;text-align:center;letter-spacing:4px">
+      <button class="b big" id="dJoin">הצטרף לחדר</button>
+      <div class="err" id="dErr"></div>
+    </div>
+    <div class="card" id="dWait" hidden style="text-align:center">
+      <div class="sm" style="font-size:14px">קוד החדר</div>
+      <div id="dShow" style="font-size:48px;letter-spacing:10px;font-weight:700;margin:6px 0"></div>
+      <div class="sm" style="font-size:14px">שלח את הקוד לחבר וחכה שיצטרף. המשחק יתחיל אוטומטית.</div>
+    </div>
+  </section>
+
+  <section id="sDEnd" hidden>
+    <div class="card" id="dEndBody"></div>
+    <div class="row"><button class="b p" id="dEndMenu">לתפריט</button></div>
   </section>
 
   <section id="sBoard" hidden>
@@ -255,7 +281,7 @@ async function prefetch(){
 }
 function pick(){const L=AR.filter(inSel);let t=L.reduce((s,a)=>s+a[2],0),r=Math.random()*t;for(const a of L){r-=a[2];if(r<=0)return a}return L[0]}
 function renderGen(){
-  for(const id of["genL","genF"]){
+  for(const id of["genL","genF","genD"]){
     $(id).innerHTML=GEN.map(g=>`<button class="${SEL.has(g[0])?"on":""}" data-g="${g[0]}">${g[1]}</button>`).join("");
     [...$(id).children].forEach(b=>b.onclick=()=>{const g=b.dataset.g;if(SEL.has(g)){if(SEL.size>1)SEL.delete(g)}else SEL.add(g);jset("sl_gen",[...SEL]);renderGen();rebuildPool();prefetch()});
   }
@@ -277,7 +303,7 @@ const LV=[
 {t:"בלתי מנוצח",i:"💎",w:1,r:[17,25]}];
 const PER=25,PASS=15;
 let mode="free",lvl=1,lvI=0,lvC=0,lvP=0,inLevel=false;
-const SCR=["sHome","sLevels","sGame","sSum","sBoard","sHow"];
+const SCR=["sHome","sLevels","sGame","sSum","sBoard","sHow","sDuel","sDEnd"];
 function show(id){SCR.forEach(x=>$(x).hidden=x!==id);if(id!=="sGame")stop();window.scrollTo(0,0)}
 const starsOf=s=>"⭐".repeat(s)+"☆".repeat(3-s);
 const totStars=()=>Object.values(U.lv||{}).reduce((s,x)=>s+x.s,0);
@@ -292,8 +318,13 @@ function renderLevels(){
 }
 function startLevel(n){mode="level";lvl=n;lvI=0;lvC=0;lvP=0;inLevel=true;seenT=new Set();$("genFW").hidden=true;show("sGame");newRound()}
 function startFree(){mode="free";inLevel=false;$("genFW").hidden=false;show("sGame");newRound()}
-function setGH(){$("gh").textContent=mode==="level"?`שלב ${lvl} · ${LV[lvl-1].t} · שיר ${Math.min(over?lvI:lvI+1,PER)}/${PER} · ${lvP} נק׳`:"משחק חופשי"}
-function goHome(){if(inLevel&&!confirm("לצאת מהשלב? ההתקדמות בשלב הנוכחי תאבד."))return;inLevel=false;lid++;renderHome();show("sHome")}
+function setGH(){if(mode==="duel"&&D){const n=D.songs.length,o=D.opp;$("gh").textContent=`⚔️ שיר ${Math.min(over?D.idx:D.idx+1,n)}/${n} · ${D.pts} נק׳ | ${D.oppName||"חבר"}: ${o?o.pts:0} נק׳ (${o?o.d:0}/${n})`;return}$("gh").textContent=mode==="level"?`שלב ${lvl} · ${LV[lvl-1].t} · שיר ${Math.min(over?lvI:lvI+1,PER)}/${PER} · ${lvP} נק׳`:"משחק חופשי"}
+function goHome(){
+  if(mode==="duel"&&D&&D.started&&!D.fin&&!confirm("לצאת מהדו-קרב? החבר ימשיך בלעדיך."))return;
+  if(inLevel&&!confirm("לצאת מהשלב? ההתקדמות בשלב הנוכחי תאבד."))return;
+  clearInterval(dPoll);if(mode==="duel"){D=null;mode="free"}
+  inLevel=false;lid++;renderHome();show("sHome")
+}
 function showSum(){
   inLevel=false;
   const passed=lvC>=PASS,stars=lvC>=23?3:lvC>=20?2:lvC>=PASS?1:0,k="L"+lvl;
@@ -326,6 +357,7 @@ function bars(win){
 }
 function render(){$("gs").innerHTML=gu.map(g=>`<li class="${g.s?"skip":"wrong"}">${g.s?"⏭ דילוג":"✗ "+esc(g.t)}</li>`).join("")}
 async function newRound(){
+  if(mode==="duel")return duelRound();
   stop();over=false;stage=0;gu=[];cur=null;const id=++lid;
   $("result").innerHTML="";$("inp").hidden=false;$("again").hidden=true;$("q").value="";$("play").disabled=true;
   $("len").textContent="טוען שיר...";setGH();bars();render();
@@ -348,14 +380,15 @@ async function newRound(){
 function ok(t){const a=norm(t);return[cur.n,cur.f,cur.n+" - "+cur.a].some(x=>norm(x)===a)}
 async function finish(win){
   over=true;stop();const pts=win?PT[stage]:0;
-  U.songs++;if(win)U.correct++;
+  if(mode!=="duel"){U.songs++;if(win)U.correct++}
   if(mode==="level"){lvP+=pts;if(win)lvC++;lvI++}
+  if(mode==="duel"){D.pts+=pts;D.ms+=Date.now()-D.t0;D.idx++;D.fin=D.idx>=D.songs.length;duelPush(D.fin)}
   bars(win);
   $("result").innerHTML=`<div class="res" style="color:var(--${win?"ok":"bad"})">${win?"🎉 נכון! +"+pts+" נקודות":"😔 לא הפעם"}<br><span style="color:var(--tx)">${esc(cur.n)}</span><br><span style="color:var(--mu);font-size:15px">${esc(cur.a)}</span></div>`;
   $("len").textContent="אפשר להאזין לקטע המלא (30 שניות)";
   $("inp").hidden=true;$("again").hidden=false;
-  $("next").textContent=mode==="level"&&lvI>=PER?"לסיכום השלב ▶":"שיר הבא ▶";
-  setGH();saveUser();
+  $("next").textContent=mode==="level"&&lvI>=PER?"לסיכום השלב ▶":mode==="duel"&&D.fin?"לתוצאות ▶":"שיר הבא ▶";
+  setGH();if(mode!=="duel")saveUser();
 }
 function miss(t,s){
   gu.push({t,s});
@@ -366,7 +399,7 @@ function submit(){if(over||!cur)return;const t=$("q").value.trim();if(!t)return;
 $("play").onclick=play;
 $("skip").onclick=()=>{if(!over&&cur)miss("",true)};
 $("send").onclick=submit;$("bad").onclick=newRound;
-$("next").onclick=()=>{if(mode==="level"&&lvI>=PER)showSum();else newRound()};
+$("next").onclick=()=>{if(mode==="duel"){if(D.fin)showDuelEnd();else newRound();return}if(mode==="level"&&lvI>=PER)showSum();else newRound()};
 $("q").addEventListener("keydown",e=>{if(e.key==="Enter")submit()});
 let qt=0;
 $("q").addEventListener("input",()=>{
@@ -406,6 +439,107 @@ async function buildFile(){
 }
 $("bExp").onclick=buildFile;
 if(location.hash==="#admin")$("bExp").hidden=false;
+
+// ===== דו-קרב בין חברים =====
+const DN=5;
+let D=null,dPoll=0;
+const DU=c=>`${FB}/duels/${c}`;
+const randCode=()=>{const A="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let t="";for(let i=0;i<4;i++)t+=A[Math.floor(Math.random()*A.length)];return t};
+async function dget(c,p=""){const r=await fetch(`${DU(c)}${p}.json`);if(!r.ok)throw 0;return r.json()}
+async function dput(c,p,v){const r=await fetch(`${DU(c)}${p}.json`,{method:"PUT",body:JSON.stringify(v)});if(!r.ok)throw 0}
+function duelReset(){clearInterval(dPoll);D=null;$("dMenu").hidden=false;$("dWait").hidden=true;$("dErr").textContent="";$("dCode").value="";renderGen()}
+async function duelSongs(n){
+  const out=[],ids=new Set();
+  for(let t=0;t<40&&out.length<n;t++){
+    try{
+      const l=(await songsOf(wp(AR.filter(inSel)))).filter(x=>!ids.has(x.id)&&x.r<12);
+      if(!l.length)continue;
+      const x=l[Math.floor(Math.random()*l.length)];ids.add(x.id);
+      out.push({id:x.id,n:x.n,f:x.f,a:x.a,u:x.u});
+    }catch(e){}
+  }
+  return out;
+}
+async function duelCreate(){
+  if(!FB){$("dErr").textContent="דו-קרב דורש חיבור לשרת (Firebase).";return}
+  $("dErr").textContent="יוצר חדר...";
+  try{
+    const songs=await duelSongs(DN);
+    if(songs.length<DN){$("dErr").textContent="לא הצלחתי לטעון שירים. נסה שוב.";return}
+    let code;for(let i=0;i<8;i++){code=randCode();if(!(await dget(code)))break}
+    const uid=Math.random().toString(36).slice(2);
+    await dput(code,"",{created:Date.now(),songs,h:{name:U.name,uid}});
+    D={code,role:"h",uid,songs,idx:0,pts:0,ms:0,opp:null,oppName:""};
+    $("dErr").textContent="";$("dMenu").hidden=true;$("dWait").hidden=false;$("dShow").textContent=code;
+    clearInterval(dPoll);
+    dPoll=setInterval(async()=>{
+      try{const r=await dget(D.code);if(r&&r.g){clearInterval(dPoll);D.oppName=r.g.name;startDuel()}}catch(e){}
+    },2000);
+  }catch(e){$("dErr").textContent="שגיאת חיבור לשרת. בדוק שהחוקים ב-Firebase מאפשרים כתיבה ל-duels."}
+}
+async function duelJoin(){
+  if(!FB){$("dErr").textContent="דו-קרב דורש חיבור לשרת (Firebase).";return}
+  const code=$("dCode").value.trim().toUpperCase();
+  if(code.length!==4){$("dErr").textContent="הקוד חייב להיות 4 תווים";return}
+  $("dErr").textContent="מצטרף...";
+  try{
+    const r=await dget(code);
+    if(!r||!r.songs){$("dErr").textContent="החדר לא נמצא";return}
+    if(r.g){$("dErr").textContent="החדר כבר מלא";return}
+    const uid=Math.random().toString(36).slice(2);
+    await dput(code,"/g",{name:U.name,uid});
+    const r2=await dget(code);
+    if(!r2.g||r2.g.uid!==uid){$("dErr").textContent="החדר כבר מלא";return}
+    D={code,role:"g",uid,songs:r2.songs,idx:0,pts:0,ms:0,opp:null,oppName:r2.h.name};
+    $("dErr").textContent="";startDuel();
+  }catch(e){$("dErr").textContent="שגיאת חיבור לשרת. נסה שוב."}
+}
+function startDuel(){
+  mode="duel";inLevel=false;D.started=true;D.fin=false;D.idx=0;D.pts=0;D.ms=0;
+  $("genFW").hidden=true;
+  duelPush(false);
+  show("sGame");newRound();
+  clearInterval(dPoll);dPoll=setInterval(duelSync,2500);
+}
+function duelPush(fin){return dput(D.code,"/p/"+D.role,{d:D.idx,pts:D.pts,ms:D.ms,fin:!!fin}).catch(()=>{})}
+async function duelSync(){
+  if(!D)return;
+  try{
+    const p=await dget(D.code,"/p"),o=p&&p[D.role==="h"?"g":"h"];
+    D.opp=o||null;
+    if(!$("sGame").hidden)setGH();
+    if(!$("sDEnd").hidden){renderDEnd();if(D.fin&&D.opp&&D.opp.fin)clearInterval(dPoll)}
+  }catch(e){}
+}
+async function duelRound(){
+  stop();over=false;stage=0;gu=[];const id=++lid;
+  cur=D.songs[D.idx];
+  $("result").innerHTML="";$("inp").hidden=false;$("again").hidden=true;$("q").value="";$("play").disabled=true;
+  $("len").textContent="טוען שיר...";setGH();bars();render();
+  try{await new Promise((res,rej)=>{A.oncanplaythrough=res;A.onerror=rej;A.src=cur.u;A.load();setTimeout(res,6000)})}catch(e){}
+  if(id!==lid)return;
+  $("play").disabled=false;bars();D.t0=Date.now();
+}
+function showDuelEnd(){show("sDEnd");renderDEnd();duelSync()}
+function renderDEnd(){
+  const o=D.opp,me=D.pts,n=D.songs.length,fin=o&&o.fin;
+  let h=`<div class="sm" style="font-size:14px">אתה: ${esc(U.name)} · חבר: ${esc(D.oppName||"?")}</div>`;
+  if(!fin){
+    h+=`<div class="res">⏳ ממתין ש${esc(D.oppName||"החבר")} יסיים...<br><span style="font-size:15px;color:var(--mu)">הוא פתר ${o?o.d:0} מתוך ${n}</span></div><p class="sm" style="font-size:14px">הניקוד שלך: ${me} נקודות</p>`;
+  }else{
+    const win=me>o.pts||(me===o.pts&&D.ms<o.ms),draw=me===o.pts&&D.ms===o.ms;
+    h+=`<div class="res" style="color:var(--${draw?"mu":win?"ok":"bad"})">${draw?"🤝 תיקו!":win?"🏆 ניצחת!":"😔 הפסדת הפעם"}</div>
+    <table><thead><tr><th>שחקן</th><th>נקודות</th><th>זמן</th></tr></thead><tbody>
+    <tr class="me2"><td>${esc(U.name)}</td><td>${me}</td><td>${Math.round(D.ms/1000)} ש׳</td></tr>
+    <tr><td>${esc(D.oppName||"חבר")}</td><td>${o.pts}</td><td>${Math.round(o.ms/1000)} ש׳</td></tr></tbody></table>
+    <p class="sm">בתיקו בנקודות, מי שהיה מהיר יותר מנצח.</p>`;
+  }
+  $("dEndBody").innerHTML=h;
+}
+$("bDuel").onclick=()=>{duelReset();show("sDuel")};
+$("dCreate").onclick=duelCreate;
+$("dJoin").onclick=duelJoin;
+$("dEndMenu").onclick=()=>{if(D)D.started=false;goHome()};
 
 document.querySelectorAll(".back").forEach(b=>b.onclick=goHome);
 $("bLv").onclick=()=>{renderLevels();show("sLevels")};
