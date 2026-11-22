@@ -209,13 +209,18 @@ async function saveUser(){U.updated=Date.now();try{await DB.put(mkKey(U.name),U)
 // ===== שירים =====
 let cache=jget("sl_c6",{}),pool=[];
 // מאגר שירים מובנה מהקובץ songs.json שבריפו (נטען פעם אחת בכניסה)
-let BUILT={};
-async function loadBuilt(){try{const r=await fetch("songs.json",{cache:"no-cache"});if(r.ok)BUILT=await r.json()}catch(e){}}
+let BUILT={},builtP=Promise.resolve();
+async function loadBuilt(){
+  const ac=new AbortController(),to=setTimeout(()=>ac.abort(),25000);
+  try{const r=await fetch("songs.json",{signal:ac.signal});if(r.ok)BUILT=await r.json()}catch(e){}
+  clearTimeout(to);
+}
 let SEL=new Set(jget("sl_gen",["miz"]));
 const inSel=a=>a[3].some(g=>SEL.has(g));
 const isEng=a=>a[3].includes("eng");
 function rebuildPool(){pool=[];for(const a of AR){const L=BUILT[a[1]]||(cache[a[1]]&&cache[a[1]].s);if(!inSel(a)||!L)continue;for(const s of L)pool.push(s.n+" - "+s.a)}$("pool").textContent=pool.length?`מאגר: ${pool.length} שירים`:""}
 async function songsOf(a,force){
+  await builtP;
   if(!force&&BUILT[a[1]]&&BUILT[a[1]].length)return BUILT[a[1]];
   const c=cache[a[1]];if(!force&&c&&Date.now()-c.t<864e5)return c.s;
   let out=[];
@@ -238,7 +243,7 @@ async function songsOf(a,force){
 }
 let pf=false;
 async function prefetch(){
-  if(pf)return;pf=true;let fails=0;
+  if(pf)return;pf=true;let fails=0;await builtP;
   while(fails<5){
     const a=AR.find(x=>inSel(x)&&!(BUILT[x[1]]&&BUILT[x[1]].length)&&!(cache[x[1]]&&Date.now()-cache[x[1]].t<864e5));
     if(!a)break;
@@ -409,7 +414,7 @@ $("sMenu").onclick=()=>{renderLevels();show("sLevels")};
 $("go").onclick=login;$("pin").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
 
 if(!FB)$("warn").textContent="מצב מקומי: הטבלה לא משותפת בין משתמשים עד שמחברים Firebase.";
-loadBuilt().then(()=>{renderGen();rebuildPool();restore()});
+renderGen();rebuildPool();restore();builtP=loadBuilt().then(()=>{rebuildPool()});
 if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
      <script src="songless-ranks.js"></script>
