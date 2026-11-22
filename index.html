@@ -84,6 +84,7 @@ tr.me2{background:color-mix(in srgb,var(--ac) 18%,transparent);font-weight:600}
     <button class="b big" id="bFree">🎲 משחק חופשי</button>
     <button class="b big" id="bBoard">🏆 טבלת מובילים</button>
     <button class="b big" id="bHow">❓ איך משחקים</button>
+    <button class="b big" id="bExp" hidden>📦 בנה songs.json</button>
     <button class="b big" id="bOut">יציאה</button>
   </section>
 
@@ -207,12 +208,16 @@ async function saveUser(){U.updated=Date.now();try{await DB.put(mkKey(U.name),U)
 
 // ===== שירים =====
 let cache=jget("sl_c6",{}),pool=[];
+// מאגר שירים מובנה מהקובץ songs.json שבריפו (נטען פעם אחת בכניסה)
+let BUILT={};
+async function loadBuilt(){try{const r=await fetch("songs.json",{cache:"no-cache"});if(r.ok)BUILT=await r.json()}catch(e){}}
 let SEL=new Set(jget("sl_gen",["miz"]));
 const inSel=a=>a[3].some(g=>SEL.has(g));
 const isEng=a=>a[3].includes("eng");
-function rebuildPool(){pool=[];for(const a of AR){if(!inSel(a)||!cache[a[1]])continue;for(const s of cache[a[1]].s)pool.push(s.n+" - "+s.a)}$("pool").textContent=pool.length?`מאגר: ${pool.length} שירים`:""}
-async function songsOf(a){
-  const c=cache[a[1]];if(c&&Date.now()-c.t<864e5)return c.s;
+function rebuildPool(){pool=[];for(const a of AR){const L=BUILT[a[1]]||(cache[a[1]]&&cache[a[1]].s);if(!inSel(a)||!L)continue;for(const s of L)pool.push(s.n+" - "+s.a)}$("pool").textContent=pool.length?`מאגר: ${pool.length} שירים`:""}
+async function songsOf(a,force){
+  if(!force&&BUILT[a[1]]&&BUILT[a[1]].length)return BUILT[a[1]];
+  const c=cache[a[1]];if(!force&&c&&Date.now()-c.t<864e5)return c.s;
   let out=[];
   for(const term of isEng(a)?[a[0]]:[a[0],a[1]]){
     const r=await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&country=${isEng(a)?"US":"IL"}&media=music&entity=song&attribute=artistTerm&limit=50`);
@@ -227,7 +232,7 @@ let pf=false;
 async function prefetch(){
   if(pf)return;pf=true;let fails=0;
   while(fails<5){
-    const a=AR.find(x=>inSel(x)&&!(cache[x[1]]&&Date.now()-cache[x[1]].t<864e5));
+    const a=AR.find(x=>inSel(x)&&!(BUILT[x[1]]&&BUILT[x[1]].length)&&!(cache[x[1]]&&Date.now()-cache[x[1]].t<864e5));
     if(!a)break;
     try{await songsOf(a);fails=0}catch(e){fails++;await new Promise(r=>setTimeout(r,15000))}
     await new Promise(r=>setTimeout(r,3200));
@@ -365,6 +370,24 @@ async function board(){
     $("tb").innerHTML=l.map((p,i)=>`<tr class="${mkKey(p.name)===me?"me2":""}"><td>${i+1}${i<3?["🥇","🥈","🥉"][i]:""}</td><td>${esc(p.name)}</td><td>${p.points||0}</td><td>${p.unlocked||1}</td><td>${Object.values(p.lv||{}).reduce((s,x)=>s+x.s,0)}⭐</td></tr>`).join("")||'<tr><td colspan="5">אין עדיין שחקנים</td></tr>';
   }catch(e){$("tb").innerHTML='<tr><td colspan="5">שגיאה בטעינת הטבלה</td></tr>'}
 }
+// ===== בניית songs.json (מנהל בלבד: הוסף #admin לכתובת) =====
+async function buildFile(){
+  const out={};let i=0;
+  for(const a of AR){
+    $("warn").textContent=`בונה קובץ שירים... ${++i}/${AR.length} (${a[0]})`;
+    let l=null;
+    for(let t=0;t<3&&!l;t++){try{l=await songsOf(a,true)}catch(e){await new Promise(r=>setTimeout(r,15000))}}
+    out[a[1]]=l||BUILT[a[1]]||[];
+    await new Promise(r=>setTimeout(r,3200));
+  }
+  const el=document.createElement("a");
+  el.href=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:"application/json"}));
+  el.download="songs.json";el.click();
+  $("warn").textContent="הקובץ מוכן. העלה אותו לריפו.";
+}
+$("bExp").onclick=buildFile;
+if(location.hash==="#admin")$("bExp").hidden=false;
+
 document.querySelectorAll(".back").forEach(b=>b.onclick=goHome);
 $("bLv").onclick=()=>{renderLevels();show("sLevels")};
 $("bFree").onclick=startFree;
@@ -378,7 +401,7 @@ $("sMenu").onclick=()=>{renderLevels();show("sLevels")};
 $("go").onclick=login;$("pin").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
 
 if(!FB)$("warn").textContent="מצב מקומי: הטבלה לא משותפת בין משתמשים עד שמחברים Firebase.";
-renderGen();rebuildPool();restore();
+loadBuilt().then(()=>{renderGen();rebuildPool();restore()});
 if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
      <script src="songless-ranks.js"></script>
